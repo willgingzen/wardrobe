@@ -45,6 +45,9 @@
     transition: box-shadow 0.15s, transform 0.15s;
   }
   .outfit-card:hover { box-shadow: 0 4px 16px rgba(0,0,0,0.12); transform: translateY(-2px); }
+  .outfit-card[draggable="true"] { cursor: grab; }
+  .outfit-card.dragging { opacity: 0.35; cursor: grabbing; transform: scale(0.97); }
+  .outfit-card.drag-over { outline: 2px solid #1a1a1a; outline-offset: -2px; }
   .outfit-card-photos {
     display: grid;
     grid-template-columns: 1fr 1fr;
@@ -1152,6 +1155,17 @@
     .nav-arrow { display: none !important; }
     .nav-counter { bottom: 74px; }
 
+    /* Outfits grid */
+    .outfit-grid {
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      padding: 16px 12px 80px;
+    }
+    .outfit-card-body { padding: 8px 10px; }
+    .outfit-name { font-size: 13px; }
+    .outfit-items-summary { font-size: 10px; }
+    #outfit-grid-wrap > div:first-child { padding: 10px 12px 0; }
+
     /* Outfit modal */
     .outfit-modal {
       width: 100vw;
@@ -1273,7 +1287,8 @@
 
 <!-- Outfits view -->
 <div id="outfit-grid-wrap" style="display:none">
-  <div style="padding:16px 24px 0;display:flex;justify-content:flex-end">
+  <div style="padding:16px 24px 0;display:flex;justify-content:space-between;align-items:center">
+    <div class="drag-hint visible" id="outfit-drag-hint" style="padding:0;display:inline">Drag to reorder &nbsp;·&nbsp; <button id="reset-outfit-order-btn" onclick="resetOutfitOrder()" style="font-size:11px;color:#aaa;background:none;border:none;cursor:pointer;padding:0;text-decoration:underline">Reset</button></div>
     <button class="btn-new-outfit" onclick="openOutfitBuilder(null)">+ New Outfit</button>
   </div>
   <div class="outfit-grid" id="outfit-grid"></div>
@@ -2081,15 +2096,86 @@ function setView(view) {
   }
 }
 
+// --- Outfit drag & drop order ---
+let outfitCustomOrder = JSON.parse(localStorage.getItem('outfitOrder') || 'null');
+
+function applyOutfitCustomOrder(outfits) {
+  if (!outfitCustomOrder) return outfits;
+  const orderMap = new Map(outfitCustomOrder.map((id, i) => [id, i]));
+  return [...outfits].sort((a, b) => {
+    const ai = orderMap.has(a.id) ? orderMap.get(a.id) : Infinity;
+    const bi = orderMap.has(b.id) ? orderMap.get(b.id) : Infinity;
+    return ai - bi;
+  });
+}
+
+function saveOutfitOrder(orderedOutfits) {
+  outfitCustomOrder = orderedOutfits.map(o => o.id);
+  localStorage.setItem('outfitOrder', JSON.stringify(outfitCustomOrder));
+}
+
+function resetOutfitOrder() {
+  outfitCustomOrder = null;
+  localStorage.removeItem('outfitOrder');
+  renderOutfits();
+}
+
+function initOutfitDragDrop(grid) {
+  const cards = grid.querySelectorAll('.outfit-card[draggable="true"]');
+  let dragSrc = null;
+
+  cards.forEach(card => {
+    card.addEventListener('dragstart', e => {
+      dragSrc = card;
+      card.classList.add('dragging');
+      e.dataTransfer.effectAllowed = 'move';
+    });
+    card.addEventListener('dragend', () => {
+      card.classList.remove('dragging');
+      grid.querySelectorAll('.outfit-card').forEach(c => c.classList.remove('drag-over'));
+      // Rebuild order from DOM using data-id
+      const idMap = new Map(allOutfits.map(o => [String(o.id), o]));
+      const newOrder = [...grid.querySelectorAll('.outfit-card')].map(c => idMap.get(c.dataset.id)).filter(Boolean);
+      allOutfits = newOrder;
+      saveOutfitOrder(newOrder);
+    });
+    card.addEventListener('dragover', e => {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      if (card !== dragSrc) {
+        grid.querySelectorAll('.outfit-card').forEach(c => c.classList.remove('drag-over'));
+        card.classList.add('drag-over');
+      }
+    });
+    card.addEventListener('dragleave', () => card.classList.remove('drag-over'));
+    card.addEventListener('drop', e => {
+      e.preventDefault();
+      if (!dragSrc || dragSrc === card) return;
+      card.classList.remove('drag-over');
+      const allCards = [...grid.querySelectorAll('.outfit-card')];
+      const srcIdx = allCards.indexOf(dragSrc);
+      const tgtIdx = allCards.indexOf(card);
+      if (srcIdx < tgtIdx) {
+        grid.insertBefore(dragSrc, card.nextSibling);
+      } else {
+        grid.insertBefore(dragSrc, card);
+      }
+    });
+  });
+}
+
 function renderOutfits() {
   const grid = document.getElementById('outfit-grid');
   if (!allOutfits.length) {
     grid.innerHTML = '<div class="empty"><h3>No outfits yet</h3><p>Click "+ New Outfit" to build your first</p></div>';
     return;
   }
+
+  const ordered = applyOutfitCustomOrder(allOutfits);
+
   // Ordered slots so the mosaic is always: top-left=top, top-right=bottom, bottom-left=shoes, bottom-right=outerwear
   const SLOT_ORDER = ['top', 'bottom', 'shoes', 'outerwear'];
-  grid.innerHTML = allOutfits.map(outfit => {
+  grid.innerHTML = ordered.map(outfit => {
     // Build a slot map for ordered display
     const slotMap = {};
     outfit.items.forEach(it => { slotMap[it.slot] = it; });
@@ -2104,7 +2190,7 @@ function renderOutfits() {
       : '';
     const summary = SLOT_ORDER.map(s => slotMap[s]?.subcategory || slotMap[s]?.category).filter(Boolean).join(', ');
     return `
-      <div class="outfit-card" onclick="openOutfitBuilder(${outfit.id})">
+      <div class="outfit-card" data-id="${outfit.id}" draggable="true">
         <div class="outfit-card-photos">${photos}</div>
         <div class="outfit-card-body">
           ${badge}
@@ -2113,6 +2199,15 @@ function renderOutfits() {
         </div>
       </div>`;
   }).join('');
+
+  // Attach click listeners (separate from drag)
+  grid.querySelectorAll('.outfit-card').forEach(card => {
+    card.addEventListener('click', () => {
+      openOutfitBuilder(+card.dataset.id);
+    });
+  });
+
+  initOutfitDragDrop(grid);
 }
 
 function openOutfitBuilder(outfitId) {
