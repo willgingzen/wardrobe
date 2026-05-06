@@ -227,6 +227,42 @@
     overflow: hidden;
     text-overflow: ellipsis;
   }
+  /* Outfit compatibility warnings */
+  .outfit-warnings {
+    padding: 0 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .outfit-warning {
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    padding: 8px 12px;
+    border-radius: 8px;
+    font-size: 12px;
+    line-height: 1.4;
+  }
+  .outfit-warning-icon { flex-shrink: 0; font-size: 14px; }
+  .outfit-warning.weather {
+    background: #fef3c7;
+    color: #92400e;
+    border: 1px solid #fde68a;
+  }
+  .outfit-warning.formality {
+    background: #fee2e2;
+    color: #991b1b;
+    border: 1px solid #fecaca;
+  }
+  .outfit-slot.weather-conflict {
+    border-color: #f59e0b;
+    background: #fffbeb;
+  }
+  .outfit-slot.formality-conflict {
+    border-color: #ef4444;
+    background: #fef2f2;
+  }
+
   .outfit-meta { padding: 14px 16px; border-top: 1px solid #eee; display: flex; gap: 10px; align-items: center; }
   .outfit-meta input, .outfit-meta select {
     border: 1px solid #ddd; border-radius: 6px; padding: 7px 10px; font-size: 13px; outline: none; background: #fafafa;
@@ -1356,6 +1392,8 @@
         </div>
       </div>
     </div>
+    <!-- Compatibility warnings -->
+    <div class="outfit-warnings" id="outfit-warnings"></div>
     <!-- Bottom meta bar -->
     <div class="outfit-meta">
       <input id="outfit-name" placeholder="Outfit name...">
@@ -2257,6 +2295,7 @@ function closeOutfitOverlay(e) {
 
 function renderAllSlots() {
   ['top', 'bottom', 'shoes', 'outerwear'].forEach(renderSlot);
+  checkOutfitCompatibility();
 }
 
 function renderSlot(slot) {
@@ -2293,6 +2332,7 @@ function removeFromSlot(e, slot) {
   e.stopPropagation();
   outfitSlots[slot] = null;
   renderSlot(slot);
+  checkOutfitCompatibility();
 }
 
 function renderPickerGrid() {
@@ -2327,6 +2367,107 @@ function pickItem(itemId) {
   outfitSlots[activeSlot] = item;
   renderSlot(activeSlot);
   renderPickerGrid();
+  checkOutfitCompatibility();
+}
+
+// ── Outfit compatibility checks ─────────────────────────────────────────────
+
+function parseWeather(w) {
+  if (!w) return [];
+  return w.split('|').map(s => s.trim().toLowerCase()).filter(Boolean);
+}
+
+function weatherOverlap(a, b) {
+  const sa = new Set(parseWeather(a));
+  const sb = new Set(parseWeather(b));
+  if (!sa.size || !sb.size) return null; // can't check if no data
+  const shared = [...sa].filter(x => sb.has(x));
+  return shared.length > 0 ? shared : [];
+}
+
+const WEATHER_ORDER = ['hot', 'warm', 'mild', 'cool', 'cold'];
+
+function weatherRange(w) {
+  const seasons = parseWeather(w);
+  if (!seasons.length) return '';
+  const indices = seasons.map(s => WEATHER_ORDER.indexOf(s)).filter(i => i >= 0).sort();
+  return `${WEATHER_ORDER[indices[0]]}–${WEATHER_ORDER[indices[indices.length - 1]]}`;
+}
+
+function checkOutfitCompatibility() {
+  const warnings = [];
+  const conflictSlots = { weather: new Set(), formality: new Set() };
+
+  const filled = Object.entries(outfitSlots).filter(([, item]) => item);
+  if (filled.length < 2) {
+    renderOutfitWarnings([], {});
+    return;
+  }
+
+  // Weather check: find the intersection of all items' weather ranges
+  const allWeatherSets = filled
+    .map(([slot, item]) => ({ slot, item, weathers: new Set(parseWeather(item.weather)) }))
+    .filter(x => x.weathers.size > 0);
+
+  if (allWeatherSets.length >= 2) {
+    // Find items with no overlap
+    for (let i = 0; i < allWeatherSets.length; i++) {
+      for (let j = i + 1; j < allWeatherSets.length; j++) {
+        const a = allWeatherSets[i];
+        const b = allWeatherSets[j];
+        const shared = [...a.weathers].filter(x => b.weathers.has(x));
+        if (shared.length === 0) {
+          conflictSlots.weather.add(a.slot);
+          conflictSlots.weather.add(b.slot);
+          const aName = a.item.subcategory || a.item.category || a.item.id;
+          const bName = b.item.subcategory || b.item.category || b.item.id;
+          warnings.push({
+            type: 'weather',
+            text: `${aName} (${weatherRange(a.item.weather)}) and ${bName} (${weatherRange(b.item.weather)}) don't share any weather — you'd never wear these together.`
+          });
+        }
+      }
+    }
+  }
+
+  // Formality check: flag if spread is > 2 levels
+  const formalityItems = filled
+    .filter(([, item]) => item.formality)
+    .map(([slot, item]) => ({ slot, item, f: +item.formality }));
+
+  if (formalityItems.length >= 2) {
+    const min = formalityItems.reduce((a, b) => a.f < b.f ? a : b);
+    const max = formalityItems.reduce((a, b) => a.f > b.f ? a : b);
+    if (max.f - min.f > 2) {
+      conflictSlots.formality.add(min.slot);
+      conflictSlots.formality.add(max.slot);
+      const minName = min.item.subcategory || min.item.category || min.item.id;
+      const maxName = max.item.subcategory || max.item.category || max.item.id;
+      warnings.push({
+        type: 'formality',
+        text: `${minName} (${FORMALITY_LABELS[min.f]}) and ${maxName} (${FORMALITY_LABELS[max.f]}) are ${max.f - min.f} formality levels apart — might look mismatched.`
+      });
+    }
+  }
+
+  renderOutfitWarnings(warnings, conflictSlots);
+}
+
+function renderOutfitWarnings(warnings, conflictSlots) {
+  const el = document.getElementById('outfit-warnings');
+  el.innerHTML = warnings.map(w => `
+    <div class="outfit-warning ${w.type}">
+      <span class="outfit-warning-icon">${w.type === 'weather' ? '🌡' : '👔'}</span>
+      <span>${w.text}</span>
+    </div>
+  `).join('');
+
+  // Highlight conflicting slots
+  ['top', 'bottom', 'shoes', 'outerwear'].forEach(slot => {
+    const slotEl = document.getElementById(`slot-${slot}`);
+    slotEl.classList.toggle('weather-conflict', conflictSlots.weather?.has(slot) || false);
+    slotEl.classList.toggle('formality-conflict', conflictSlots.formality?.has(slot) || false);
+  });
 }
 
 async function saveOutfit() {
