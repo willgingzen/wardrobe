@@ -1,67 +1,156 @@
 # Wardrobe
 
-A clothing database built on Google Drive and Google Sheets, used to get daily outfit suggestions and identify wardrobe gaps for shopping — accessed via the Claude mobile app.
+A personal wardrobe management app for cataloging clothes, building outfits, tracking style gaps, and evaluating new purchases with AI.
 
-## How it works
+## Quick Start
 
-Photos are taken in Apple Photos (Wardrobe album), exported, compressed, and uploaded to Google Drive. Claude classifies each item and writes metadata to a Google Sheet. From the phone, ask Claude to suggest an outfit and it can read the sheet and images directly.
+```bash
+# Install dependencies
+python3 -m pip install flask python-dotenv anthropic ddgs
 
-## Google Drive
+# Add your API key (optional — needed for Fit Check + shopping refresh)
+echo "ANTHROPIC_API_KEY=sk-ant-..." > .env.local
 
-| Resource | ID / URL |
-|---|---|
-| Wardrobe folder | [`1CkxKr1UYXK4OagsYKscki7U4qnHGjr6q`](https://drive.google.com/drive/folders/1CkxKr1UYXK4OagsYKscki7U4qnHGjr6q) |
-| Images subfolder | `1ihjlfuzhSRazb3X1bLtqvrVS8LQ9JDeg` |
-| Wardrobe v3 (current sheet) | [`14dikKFfqs-9gGuu4fLE5WO6CnKBuf2E9gm9aIIL9BkM`](https://docs.google.com/spreadsheets/d/14dikKFfqs-9gGuu4fLE5WO6CnKBuf2E9gm9aIIL9BkM) |
+# Run
+python3 app.py
+# → http://localhost:5001
+```
 
-## Sheet schema
+## What It Does
 
-| Column | Description |
-|---|---|
-| `id` | W001–W077 (sequential, never reused) |
-| `category` | `top` / `bottom` / `outerwear` / `shoes` |
-| `subcategory` | dress shirt, chinos, blazer, flannel, etc. |
-| `colors` | pipe-delimited (e.g. `light blue\|white`) |
-| `pattern` | solid / check / plaid / graphic / heather / etc. |
-| `formality` | 1 (casual) → 5 (black tie) |
-| `weather` | pipe-delimited: `hot` / `warm` / `mild` / `cool` / `cold` |
-| `fit` | regular / slim / relaxed / athletic / classic |
-| `pairs_well_with` | pipe-delimited W-IDs |
-| `notes` | fabric, style details, notable features |
-| `brand` | brand name where visible |
-| `size_tag` | size from label — fill in manually |
-| `image` | Google Drive view URL |
+### Wardrobe Tab
+Browse your entire wardrobe as a visual card grid. Cards show the garment photo (4:5 aspect, full-garment view), subcategory, brand, colors, and formality level. Click any card to open the detail view where you can edit all metadata inline.
 
-## Item count
+- **Drag & drop** to reorder cards (desktop; order persists in localStorage)
+- **Filters** by category, weather, formality, fit, and free-text search
+- **Quick Add** (mobile "+" button) — snap a photo, pick a category, done. Edit details later.
 
-| Category | Count |
-|---|---|
-| Tops | 51 (W010–W074, excl. outerwear) |
-| Outerwear | 15 (W001–W009, W011, W017, W018, W023, W026, W028, W055, W059) |
-| Bottoms | 3 (W075–W077) |
-| Shoes | 14 (W029–W042) |
-| **Total** | **77** |
+### Outfits Tab
+Build and save outfits by picking items into slots: top, bottom, shoes, outerwear. Each outfit gets a name and activity tag (casual, date, work, etc.). The grid shows a 2x2 photo mosaic of the outfit's items.
 
-## Adding new items
+### Shelf Tab
+Two zones: **In Rotation** (active wardrobe) and **House** (stored away). Drag items between zones to change their status. Zoom slider to adjust thumbnail size.
 
-1. Take photos in Apple Photos → add to **Wardrobe** album (portrait orientation, hang on rack against plain background)
-2. Tell Claude: "I added X new items to the Wardrobe album"
-3. Claude will:
-   - Export + compress new photos from the album (`sips`, q70, max 1200px)
-   - You drag the JPEGs from `/tmp/wardrobe_pants/` (or equivalent) to the Drive images folder
-   - Claude classifies each item visually and appends rows to the sheet
-   - A new versioned sheet (`Wardrobe v4`, etc.) is uploaded to Drive
+### Style Tab
+AI-powered style management based on a personal style guide (`STYLE_GUIDE.md`):
 
-## Updating the sheet
+- **Purchase list** — tiered recommendations for wardrobe gaps, each with 3 shopping links (curated across niche brands, sale sections, and secondhand platforms)
+- **Refresh button** — per-section AI search that uses Claude + DuckDuckGo to find current product availability and prices. Includes curated brand lists for each category.
+- **Cull list** — items flagged for toss (damaged) or donation (redundant)
 
-Claude always **downloads the current sheet first**, then applies changes, then uploads a new version. This preserves any manual edits (e.g. `size_tag` values you've filled in).
+### Fit Check Tab
+Take a photo of a garment while shopping and get an AI assessment:
+- **Score** (1-10) — how well it fits your wardrobe and style
+- **Pairs with** — specific items from your wardrobe shown as thumbnails
+- **Gaps filled** — which purchase priorities it addresses
+- **Concerns** — overlap with existing items, wrong color palette, etc.
+- **Quick add** — high-scoring items can be added to the wardrobe in one tap
 
-## Local temp files
+## Architecture
 
-Compressed images land in `/tmp/wardrobe_*/` during processing. These are cleared on reboot — Drive is the source of truth.
+Single-page app — no build tools, no frameworks.
 
-## What's still missing
+| Layer | Tech | File |
+|-------|------|------|
+| Frontend | Vanilla HTML/CSS/JS | `static/index.html` |
+| Backend | Flask (Python) | `app.py` |
+| Database | SQLite | `wardrobe.db` |
+| AI | Anthropic Claude API | via `anthropic` SDK |
+| Search | DuckDuckGo | via `ddgs` package |
+| Images | Local filesystem | `images/` directory |
 
-- **Jeans / casual pants** — needed before outfit suggestions work well for casual looks
-- **Shorts** — for summer outfit suggestions  
-- **`size_tag`** — fill in from labels, useful for online shopping gap analysis
+## Database Schema
+
+### `items`
+| Column | Type | Description |
+|--------|------|-------------|
+| `id` | TEXT PK | `W001`–`W999` (auto-assigned) |
+| `category` | TEXT | `outerwear`, `top`, `bottom`, `shoes`, `accessory` |
+| `subcategory` | TEXT | e.g. `blazer`, `chinos`, `loafer` |
+| `colors` | TEXT | Pipe-delimited: `navy\|white` |
+| `pattern` | TEXT | `solid`, `plaid`, `check`, `stripe`, `print`, etc. |
+| `formality` | INT | 1 (casual) → 5 (formal) |
+| `weather` | TEXT | Pipe-delimited: `hot\|warm\|mild\|cool\|cold` |
+| `fit` | TEXT | `regular`, `slim`, `relaxed`, `athletic`, `classic` |
+| `pairs_well_with` | TEXT | Pipe-delimited item IDs |
+| `notes` | TEXT | Fabric, style details, condition |
+| `brand` | TEXT | Brand name |
+| `size_tag` | TEXT | Label size (e.g. `M`, `32x32`, `10`) |
+| `image_url` | TEXT | Google Drive URL (legacy fallback) |
+| `tailored` | INT | 0/1 — custom fit or altered |
+| `status` | TEXT | `active` (in rotation) or `home` (stored) |
+
+### `outfits`
+| Column | Type | Description |
+|--------|------|-------------|
+| `id` | INT PK | Auto-increment |
+| `name` | TEXT | Outfit name |
+| `activity` | TEXT | `casual`, `work`, `formal`, `date`, etc. |
+| `notes` | TEXT | Optional notes |
+| `created_at` | TEXT | ISO datetime |
+
+### `outfit_items`
+| Column | Type | Description |
+|--------|------|-------------|
+| `outfit_id` | INT FK | References `outfits.id` |
+| `item_id` | TEXT | References `items.id` |
+| `slot` | TEXT | `top`, `bottom`, `shoes`, `outerwear` |
+
+## API Endpoints
+
+| Method | Path | Description |
+|--------|------|-------------|
+| GET | `/api/items` | List all items (supports query filters) |
+| GET | `/api/items/:id` | Get single item |
+| POST | `/api/items` | Add item (FormData with optional image) |
+| PUT | `/api/items/:id` | Update item |
+| DELETE | `/api/items/:id` | Delete item |
+| PATCH | `/api/items/:id/status` | Change item status (active/home) |
+| GET | `/api/meta` | Categories, fits, weathers, formalities |
+| GET | `/api/outfits` | List all outfits with items |
+| POST | `/api/outfits` | Create outfit |
+| PUT | `/api/outfits/:id` | Update outfit |
+| DELETE | `/api/outfits/:id` | Delete outfit |
+| GET | `/api/style-gaps` | Purchase recommendations + cull lists |
+| POST | `/api/refresh-section` | AI-powered product search for a purchase category |
+| POST | `/api/fit-check` | AI analysis of a photo against wardrobe + style |
+
+## Mobile Support
+
+The app is designed mobile-first for iPhone Safari:
+- Bottom tab bar for thumb-reachable navigation
+- 2-column card grid optimized for phone screens
+- Full-screen detail modal with swipe left/right navigation
+- 16px form inputs (prevents iOS auto-zoom)
+- Camera capture via `<input capture="environment">` for Quick Add and Fit Check
+- Touch-friendly weather pill toggles and action buttons
+
+## Files
+
+```
+wardrobe/
+  app.py              # Flask backend + AI endpoints
+  static/index.html   # Full frontend (HTML + CSS + JS, single file)
+  images/             # Local item photos (W001.jpg, etc.)
+  wardrobe.db         # SQLite database (auto-created)
+  STYLE_GUIDE.md      # Personal style guide (fed to AI)
+  .env.local          # ANTHROPIC_API_KEY (not committed)
+  .gitignore
+  README.md
+```
+
+## Style Guide
+
+`STYLE_GUIDE.md` defines the user's aesthetic ("Relaxed Ivy / Mediterranean Ease"), color system, silhouette rules, outfit architecture, and a prioritized purchase list. This file is referenced by the AI in both the shopping refresh and fit check features. It includes:
+
+- Aesthetic identity and style references
+- Color system (warm neutrals, accent colors, what to avoid)
+- 8 style rules (e.g. "relaxed bottom, fitted top", "loafer as default shoe")
+- Outfit templates for dressed up, going out, casual, and warm weather
+- Purchase priority tiers with specific brand targets
+- Current wardrobe assets that fit the aesthetic
+- Items that work against the aesthetic
+
+## History
+
+Originally a Google Sheets + Google Drive workflow accessed via Claude mobile app. Migrated to a standalone Flask web app with local SQLite for faster iteration, then progressively enhanced with outfit building, shelf management, AI-powered shopping, and the fit checker.
