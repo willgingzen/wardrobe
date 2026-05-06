@@ -1,0 +1,2615 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Wardrobe</title>
+<style>
+  :root { --shelf-item-size: 88px; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    background: #f5f5f5;
+    color: #1a1a1a;
+  }
+
+  /* Header */
+  header {
+    background: #1a1a1a;
+    color: #fff;
+    padding: 16px 24px;
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    align-items: center;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  header h1 { font-size: 18px; font-weight: 600; letter-spacing: 0.05em; }
+  .count { font-size: 13px; color: #888; text-align: right; }
+
+  /* Outfits grid */
+  .outfit-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 16px;
+    padding: 24px;
+  }
+  .outfit-card {
+    background: #fff;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    cursor: pointer;
+    transition: box-shadow 0.15s, transform 0.15s;
+  }
+  .outfit-card:hover { box-shadow: 0 4px 16px rgba(0,0,0,0.12); transform: translateY(-2px); }
+  .outfit-card-photos {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 2px;
+    background: #e8e8e8;
+    overflow: hidden;
+  }
+  .outfit-card-photos > * {
+    aspect-ratio: 1;
+    overflow: hidden;
+    min-width: 0;
+  }
+  .outfit-card-photos img {
+    width: 100%; height: 100%;
+    object-fit: contain;
+    background: #f5f5f5;
+    display: block;
+  }
+  .outfit-card-photos .photo-placeholder {
+    background: #f5f5f5;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 22px;
+    color: #bbb;
+  }
+  .outfit-card-body { padding: 12px 14px; }
+  .outfit-activity-badge {
+    display: inline-block;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    background: #1a1a1a;
+    color: #fff;
+    padding: 2px 8px;
+    border-radius: 4px;
+    margin-bottom: 6px;
+  }
+  .outfit-name { font-size: 15px; font-weight: 600; margin-bottom: 4px; }
+  .outfit-items-summary { font-size: 12px; color: #888; }
+
+  /* Outfit builder modal */
+  .outfit-modal {
+    background: #fff;
+    border-radius: 16px;
+    width: 820px;
+    max-width: 95vw;
+    max-height: 90vh;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+  .outfit-modal-header {
+    padding: 20px 24px 16px;
+    border-bottom: 1px solid #eee;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .outfit-modal-header h2 { font-size: 18px; font-weight: 600; }
+  .outfit-modal-body {
+    display: flex;
+    flex: 1;
+    overflow: hidden;
+  }
+  .outfit-slots {
+    width: 220px;
+    flex-shrink: 0;
+    border-right: 1px solid #eee;
+    overflow-y: auto;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .outfit-slot {
+    border: 2px dashed #e0e0e0;
+    border-radius: 10px;
+    padding: 10px;
+    cursor: pointer;
+    transition: border-color 0.15s;
+    position: relative;
+  }
+  .outfit-slot.active { border-color: #1a1a1a; border-style: solid; }
+  .outfit-slot.filled { border-style: solid; border-color: #ccc; }
+  .outfit-slot-label {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: #999;
+    margin-bottom: 6px;
+  }
+  .outfit-slot-content {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 44px;
+  }
+  .outfit-slot-img {
+    width: 44px; height: 44px;
+    object-fit: cover;
+    border-radius: 6px;
+    background: #f0f0f0;
+    flex-shrink: 0;
+  }
+  .outfit-slot-name { font-size: 12px; color: #444; line-height: 1.3; }
+  .outfit-slot-empty { font-size: 12px; color: #bbb; }
+  .outfit-slot-remove {
+    position: absolute;
+    top: 6px; right: 6px;
+    background: #ff4444;
+    color: #fff;
+    border: none;
+    border-radius: 50%;
+    width: 18px; height: 18px;
+    font-size: 11px;
+    cursor: pointer;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+  }
+  .outfit-slot.filled:hover .outfit-slot-remove { display: flex; }
+  .outfit-picker {
+    flex: 1;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+  }
+  .outfit-picker-header {
+    padding: 14px 16px 10px;
+    border-bottom: 1px solid #eee;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .outfit-picker-header h3 { font-size: 14px; font-weight: 600; }
+  .outfit-picker-search {
+    flex: 1;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    padding: 5px 10px;
+    font-size: 13px;
+    outline: none;
+  }
+  .outfit-picker-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
+    gap: 8px;
+    padding: 12px;
+    overflow-y: auto;
+    flex: 1;
+  }
+  .outfit-picker-item {
+    cursor: pointer;
+    border-radius: 8px;
+    overflow: hidden;
+    border: 2px solid transparent;
+    transition: border-color 0.1s, transform 0.1s;
+    background: #f5f5f5;
+  }
+  .outfit-picker-item:hover { border-color: #aaa; transform: scale(1.03); }
+  .outfit-picker-item.selected { border-color: #1a1a1a; }
+  .outfit-picker-item img {
+    width: 100%;
+    aspect-ratio: 3/4;
+    object-fit: cover;
+    display: block;
+  }
+  .outfit-picker-item-label {
+    font-size: 10px;
+    padding: 4px 5px;
+    color: #555;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .outfit-meta { padding: 14px 16px; border-top: 1px solid #eee; display: flex; gap: 10px; align-items: center; }
+  .outfit-meta input, .outfit-meta select {
+    border: 1px solid #ddd; border-radius: 6px; padding: 7px 10px; font-size: 13px; outline: none; background: #fafafa;
+  }
+  .outfit-meta input { flex: 1; }
+
+  /* Outfit detail view (read mode) */
+  .outfit-detail-slots {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 12px;
+    padding: 16px;
+  }
+  .outfit-detail-slot { background: #f8f8f8; border-radius: 10px; overflow: hidden; }
+  .outfit-detail-slot-label {
+    font-size: 10px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;
+    color: #999; padding: 8px 10px 4px;
+  }
+  .outfit-detail-slot-item { display: flex; align-items: center; gap: 10px; padding: 0 10px 10px; }
+  .outfit-detail-slot-item img { width: 56px; height: 56px; object-fit: cover; border-radius: 6px; }
+  .outfit-detail-slot-info { font-size: 12px; color: #444; }
+  .outfit-detail-slot-info strong { display: block; font-size: 13px; color: #1a1a1a; }
+
+  /* Add outfit button in outfits bar */
+  .btn-new-outfit {
+    background: #1a1a1a; color: #fff; border: none; border-radius: 6px;
+    padding: 7px 14px; font-size: 13px; font-weight: 500; cursor: pointer;
+    margin-left: auto;
+  }
+  .btn-new-outfit:hover { background: #333; }
+
+  /* Shelf view */
+  .shelf-wrap {
+    display: flex;
+    flex-direction: column;
+    height: calc(100vh - 53px);
+    overflow: hidden;
+  }
+  .shelf {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    min-height: 0;
+  }
+  .shelf:first-child {
+    border-bottom: 3px solid #1a1a1a;
+  }
+  .shelf-header {
+    padding: 10px 20px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: #fff;
+    border-bottom: 1px solid #eee;
+    flex-shrink: 0;
+  }
+  .shelf-title {
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+  .shelf-count {
+    font-size: 12px;
+    color: #999;
+  }
+  .shelf-hint {
+    font-size: 11px;
+    color: #bbb;
+    margin-left: auto;
+  }
+  .shelf-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 12px 16px;
+    overflow-y: auto;
+    flex: 1;
+    align-content: flex-start;
+  }
+  .shelf-grid.drag-over {
+    background: #f0f7ff;
+    outline: 2px dashed #4a90d9;
+    outline-offset: -4px;
+  }
+  .shelf-item {
+    width: var(--shelf-item-size);
+    border-radius: 8px;
+    overflow: hidden;
+    background: #f5f5f5;
+    cursor: grab;
+    border: 2px solid transparent;
+    transition: border-color 0.15s, transform 0.15s, opacity 0.15s;
+    user-select: none;
+    flex-shrink: 0;
+  }
+  .shelf-item:active { cursor: grabbing; }
+  .shelf-item.dragging { opacity: 0.35; }
+  .shelf-item img {
+    width: 100%;
+    aspect-ratio: 3/4;
+    object-fit: contain;
+    background: #f5f5f5;
+    display: block;
+    pointer-events: none;
+  }
+  .shelf-item-label {
+    font-size: 9px;
+    text-align: center;
+    padding: 3px 4px;
+    color: #666;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    background: #fff;
+    line-height: 1.3;
+  }
+  .shelf-item-placeholder {
+    width: 100%;
+    aspect-ratio: 3/4;
+    background: #eee;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 22px;
+    color: #ccc;
+  }
+  /* Home shelf items slightly muted */
+  .shelf:last-child .shelf-item {
+    opacity: 0.75;
+  }
+  .shelf:last-child .shelf-item:hover {
+    opacity: 1;
+  }
+
+  /* View toggle */
+  .view-toggle {
+    display: flex;
+    gap: 4px;
+    background: rgba(255,255,255,0.1);
+    border-radius: 8px;
+    padding: 3px;
+  }
+  .view-toggle button {
+    background: none;
+    border: none;
+    color: rgba(255,255,255,0.6);
+    font-size: 13px;
+    font-weight: 500;
+    padding: 5px 14px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .view-toggle button.active {
+    background: #fff;
+    color: #1a1a1a;
+  }
+
+  /* Filters */
+  .filters {
+    background: #fff;
+    border-bottom: 1px solid #e5e5e5;
+    padding: 12px 24px;
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    align-items: center;
+    position: sticky;
+    top: 53px;
+    z-index: 99;
+  }
+  .filters input, .filters select {
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    padding: 6px 10px;
+    font-size: 13px;
+    background: #fafafa;
+    outline: none;
+  }
+  .filters input:focus, .filters select:focus { border-color: #1a1a1a; background: #fff; }
+  .filters input[type=search] { width: 180px; }
+  .btn-add {
+    margin-left: auto;
+    background: #1a1a1a;
+    color: #fff;
+    border: none;
+    border-radius: 6px;
+    padding: 7px 14px;
+    font-size: 13px;
+    cursor: pointer;
+    font-weight: 500;
+  }
+  .btn-add:hover { background: #333; }
+
+  /* Grid */
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 14px;
+    padding: 20px 24px;
+  }
+
+  .card {
+    background: #fff;
+    border-radius: 12px;
+    overflow: hidden;
+    cursor: pointer;
+    transition: transform 0.15s, box-shadow 0.15s;
+    border: 1px solid #e5e5e5;
+    touch-action: manipulation;
+  }
+  .card:hover { transform: translateY(-2px); box-shadow: 0 4px 16px rgba(0,0,0,0.1); }
+  .card.dragging { opacity: 0.35; cursor: grabbing; transform: scale(0.97); }
+  .card.drag-over { outline: 2px solid #1a1a1a; outline-offset: -2px; }
+  .card[draggable="true"] { cursor: grab; }
+  .drag-hint { font-size: 11px; color: #aaa; text-align: right; padding: 0 24px 6px; display: none; }
+  .drag-hint.visible { display: block; }
+  #reset-order-btn { font-size: 11px; color: #aaa; background: none; border: none; cursor: pointer; padding: 0; text-decoration: underline; }
+  #reset-order-btn:hover { color: #555; }
+
+  .card-img {
+    width: 100%;
+    aspect-ratio: 4/5;
+    object-fit: contain;
+    background: #f8f7f5;
+    display: block;
+  }
+  .card-img-placeholder {
+    width: 100%;
+    aspect-ratio: 4/5;
+    background: #f8f7f5;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 36px;
+    color: #d4d0c8;
+  }
+  .card-body { padding: 8px 10px 10px; }
+  .card-id { font-size: 10px; color: #bbb; margin-bottom: 1px; }
+  .card-name { font-size: 14px; font-weight: 600; margin-bottom: 2px; line-height: 1.3; }
+  .card-brand { font-size: 11px; color: #999; }
+  .card-meta { font-size: 11px; color: #666; margin-top: 2px; }
+  .card-tags { margin-top: 5px; display: flex; gap: 4px; flex-wrap: wrap; }
+  .tag {
+    font-size: 10px;
+    padding: 2px 6px;
+    border-radius: 4px;
+    background: #f0f0f0;
+    color: #555;
+  }
+  .tag.formality-5 { background: #1a1a1a; color: #fff; }
+  .tag.formality-4 { background: #444; color: #fff; }
+  .tag.formality-3 { background: #888; color: #fff; }
+  .tag.formality-2 { background: #e0e0e0; color: #333; }
+  .tag.formality-1 { background: #f5f5f5; color: #888; }
+
+  /* Modal */
+  .overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.5);
+    z-index: 200;
+    align-items: center;
+    justify-content: center;
+  }
+  .overlay.open { display: flex; }
+
+  /* Prev / Next nav arrows */
+  .nav-arrow {
+    position: fixed;
+    top: 50%;
+    transform: translateY(-50%);
+    background: rgba(255,255,255,0.15);
+    backdrop-filter: blur(4px);
+    border: 1px solid rgba(255,255,255,0.3);
+    color: #fff;
+    border-radius: 50%;
+    width: 44px;
+    height: 44px;
+    font-size: 20px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 300;
+    transition: background 0.15s;
+    user-select: none;
+  }
+  .nav-arrow:hover { background: rgba(255,255,255,0.3); }
+  .nav-arrow:disabled { opacity: 0.2; cursor: default; }
+  .nav-arrow:disabled:hover { background: rgba(255,255,255,0.15); }
+  #nav-prev { left: 16px; }
+  #nav-next { right: 16px; }
+
+  /* Item counter badge */
+  .nav-counter {
+    position: fixed;
+    bottom: 24px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(0,0,0,0.5);
+    color: #fff;
+    font-size: 12px;
+    padding: 4px 12px;
+    border-radius: 20px;
+    z-index: 300;
+    pointer-events: none;
+  }
+
+  .modal {
+    background: #fff;
+    border-radius: 12px;
+    width: min(640px, 95vw);
+    max-height: 90vh;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .modal-header {
+    padding: 20px 24px 16px;
+    border-bottom: 1px solid #eee;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    background: #fff;
+    z-index: 1;
+  }
+  .modal-header h2 { font-size: 17px; font-weight: 600; }
+  .modal-close {
+    background: none;
+    border: none;
+    font-size: 22px;
+    cursor: pointer;
+    color: #888;
+    line-height: 1;
+    padding: 0 4px;
+  }
+
+  /* Detail view */
+  .detail-body {
+    display: flex;
+    gap: 24px;
+    padding: 24px;
+  }
+  .detail-img-wrap { flex: 0 0 220px; position: relative; }
+  .detail-img {
+    width: 100%;
+    border-radius: 8px;
+    object-fit: cover;
+    aspect-ratio: 3/4;
+    background: #f0f0f0;
+    display: block;
+    cursor: zoom-in;
+    transition: opacity 0.15s;
+  }
+  .detail-img:hover { opacity: 0.92; }
+  .img-replace-btn {
+    display: block;
+    width: 100%;
+    margin-top: 8px;
+    padding: 6px 0;
+    font-size: 12px;
+    color: #666;
+    background: #f5f5f5;
+    border: 1px solid #e0e0e0;
+    border-radius: 6px;
+    cursor: pointer;
+    text-align: center;
+    font-family: inherit;
+    transition: background 0.15s, color 0.15s;
+  }
+  .img-replace-btn:hover { background: #eee; color: #1a1a1a; }
+
+  /* Lightbox */
+  .lightbox {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.92);
+    z-index: 500;
+    align-items: center;
+    justify-content: center;
+    cursor: zoom-out;
+  }
+  .lightbox.open { display: flex; }
+  .lightbox img {
+    max-width: 92vw;
+    max-height: 92vh;
+    object-fit: contain;
+    border-radius: 4px;
+    box-shadow: 0 8px 60px rgba(0,0,0,0.6);
+    cursor: default;
+  }
+  .lightbox-close {
+    position: fixed;
+    top: 16px;
+    right: 20px;
+    color: #fff;
+    font-size: 28px;
+    cursor: pointer;
+    opacity: 0.7;
+    background: none;
+    border: none;
+    line-height: 1;
+    z-index: 501;
+  }
+  .lightbox-close:hover { opacity: 1; }
+  .detail-fields { flex: 1; }
+  .field-row {
+    display: grid;
+    grid-template-columns: 86px 1fr;
+    align-items: start;
+    gap: 0 8px;
+    margin-bottom: 8px;
+  }
+  .field-label {
+    font-size: 11px;
+    color: #888;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    padding-top: 5px;
+    line-height: 1.3;
+  }
+
+  /* Weather checkboxes */
+  .weather-checks {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    padding: 3px 0;
+  }
+  .weather-checks label {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+    font-size: 13px;
+    color: #1a1a1a;
+    cursor: pointer;
+    padding: 2px 7px;
+    border: 1px solid transparent;
+    border-radius: 4px;
+    transition: background 0.12s, border-color 0.12s;
+    user-select: none;
+  }
+  .weather-checks input[type=checkbox] { display: none; }
+  .weather-checks label:hover { background: #fafafa; border-color: #ddd; }
+  .weather-checks input:checked + span {
+    font-weight: 600;
+  }
+  .weather-checks label:has(input:checked) {
+    background: #1a1a1a;
+    border-color: #1a1a1a;
+    color: #fff;
+  }
+
+  /* Inline editable inputs */
+  .field-input {
+    font-size: 14px;
+    color: #1a1a1a;
+    border: 1px solid transparent;
+    border-radius: 4px;
+    padding: 3px 6px;
+    margin-left: -6px;
+    width: calc(100% + 6px);
+    background: transparent;
+    font-family: inherit;
+    transition: border-color 0.15s, background 0.15s;
+  }
+  .field-input:hover { border-color: #ddd; background: #fafafa; }
+  .field-input:focus { border-color: #1a1a1a; background: #fff; outline: none; }
+  .field-input.textarea { resize: vertical; min-height: 52px; }
+  .field-input option { background: #fff; }
+
+  /* Dirty indicator */
+  .btn-save-indicator {
+    width: 7px; height: 7px;
+    background: #f59e0b;
+    border-radius: 50%;
+    display: none;
+    margin-right: 2px;
+  }
+
+  .modal-actions {
+    padding: 16px 24px;
+    border-top: 1px solid #eee;
+    display: flex;
+    gap: 10px;
+    justify-content: flex-end;
+    position: sticky;
+    bottom: 0;
+    background: #fff;
+  }
+  .btn { padding: 8px 16px; border-radius: 6px; font-size: 13px; font-weight: 500; cursor: pointer; border: none; }
+  .btn-primary { background: #1a1a1a; color: #fff; }
+  .btn-primary:hover { background: #333; }
+  .btn-danger { background: #fff; color: #d00; border: 1px solid #d00; }
+  .btn-danger:hover { background: #ffeaea; }
+  .btn-secondary { background: #fff; color: #333; border: 1px solid #ddd; }
+  .btn-secondary:hover { background: #f5f5f5; }
+
+  /* Form */
+  .form-body { padding: 20px 24px; display: flex; flex-direction: column; gap: 14px; }
+  .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .form-group { display: flex; flex-direction: column; gap: 4px; }
+  .form-group label { font-size: 12px; color: #555; font-weight: 500; }
+  .form-group input, .form-group select, .form-group textarea {
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    padding: 7px 10px;
+    font-size: 13px;
+    font-family: inherit;
+    outline: none;
+  }
+  .form-group input:focus, .form-group select:focus, .form-group textarea:focus { border-color: #1a1a1a; }
+  .form-group textarea { resize: vertical; min-height: 60px; }
+  .form-group.full { grid-column: 1/-1; }
+
+  /* Image upload preview */
+  .img-upload-preview {
+    width: 100%;
+    aspect-ratio: 3/4;
+    object-fit: cover;
+    border-radius: 6px;
+    margin-top: 6px;
+    display: none;
+    background: #f0f0f0;
+  }
+
+  /* Empty state */
+  .empty { text-align: center; padding: 60px 24px; color: #888; }
+  .empty h3 { margin-bottom: 8px; }
+
+  /* ── Style Guide view ──────────────────────────────────────────────── */
+  #style-guide-wrap {
+    max-width: 920px;
+    margin: 0 auto;
+    padding: 32px 24px 64px;
+  }
+  .sg-page-title { font-size: 22px; font-weight: 700; margin-bottom: 4px; }
+  .sg-page-sub   { font-size: 13px; color: #888; margin-bottom: 36px; }
+
+  .sg-section-label {
+    font-size: 11px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase;
+    color: #aaa; padding-bottom: 10px; border-bottom: 1px solid #e8e8e8; margin-bottom: 18px;
+  }
+  .sg-block { margin-bottom: 48px; }
+
+  /* Purchase cards */
+  .sg-purchase-list { display: flex; flex-direction: column; gap: 14px; }
+  .sg-purchase-card {
+    background: #fff; border-radius: 12px; padding: 20px 22px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.07);
+  }
+  .sg-purchase-header { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
+  .sg-tier-badge {
+    font-size: 10px; font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase;
+    padding: 3px 8px; border-radius: 4px; flex-shrink: 0;
+  }
+  .sg-tier-1 { background: #fee2e2; color: #b91c1c; }
+  .sg-tier-2 { background: #fef3c7; color: #92400e; }
+  .sg-tier-3 { background: #d1fae5; color: #065f46; }
+  .sg-purchase-name { font-size: 16px; font-weight: 600; }
+  .sg-purchase-why  { font-size: 13px; color: #666; line-height: 1.55; margin-bottom: 14px; }
+  .sg-purchase-options { display: flex; flex-wrap: wrap; gap: 8px; }
+  .sg-purchase-option {
+    display: inline-flex; flex-direction: column; gap: 2px;
+    background: #f5f5f5; border-radius: 8px; padding: 10px 14px;
+    text-decoration: none; color: #1a1a1a; min-width: 160px;
+    transition: background 0.15s, transform 0.1s;
+  }
+  .sg-purchase-option:hover { background: #ebebeb; transform: translateY(-1px); }
+  .sg-purchase-option-brand { font-size: 11px; color: #999; font-weight: 500; }
+  .sg-purchase-option-name  { font-size: 13px; font-weight: 500; line-height: 1.3; }
+  .sg-purchase-option-price { font-size: 12px; color: #16a34a; font-weight: 600; margin-top: 4px; }
+
+  /* Refresh UI */
+  .sg-purchase-header { flex-wrap: wrap; }
+  .sg-refresh-btn {
+    margin-left: auto; font-size: 11px; font-weight: 600; color: #555;
+    background: #f0f0f0; border: none; border-radius: 6px; padding: 4px 10px;
+    cursor: pointer; transition: background 0.15s; white-space: nowrap;
+  }
+  .sg-refresh-btn:hover { background: #e0e0e0; }
+  .sg-refresh-panel {
+    display: none; flex-direction: column; gap: 8px;
+    margin-bottom: 14px; padding: 12px 14px;
+    background: #fafafa; border: 1px solid #e8e8e8; border-radius: 8px;
+  }
+  .sg-refresh-panel-label { font-size: 11px; font-weight: 600; color: #aaa; text-transform: uppercase; letter-spacing: 0.06em; }
+  .sg-refresh-notes {
+    font-size: 13px; border: 1px solid #ddd; border-radius: 6px;
+    padding: 8px 10px; resize: vertical; min-height: 52px;
+    font-family: inherit; color: #1a1a1a; background: #fff;
+    outline: none;
+  }
+  .sg-refresh-notes:focus { border-color: #bbb; }
+  .sg-refresh-submit {
+    align-self: flex-start; font-size: 12px; font-weight: 600;
+    background: #1a1a1a; color: #fff; border: none; border-radius: 6px;
+    padding: 7px 16px; cursor: pointer; transition: background 0.15s;
+  }
+  .sg-refresh-submit:hover { background: #333; }
+  .sg-refresh-submit:disabled { background: #999; cursor: not-allowed; }
+  .sg-refresh-loading {
+    font-size: 13px; color: #888; padding: 12px 0;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .sg-refresh-loading::before {
+    content: ''; width: 14px; height: 14px; border-radius: 50%;
+    border: 2px solid #ddd; border-top-color: #555;
+    animation: spin 0.7s linear infinite; flex-shrink: 0;
+  }
+  .sg-refresh-error { font-size: 13px; color: #b91c1c; padding: 8px 0; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* Cull cards */
+  .sg-cull-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    gap: 12px;
+  }
+  .sg-cull-card {
+    background: #fff; border-radius: 10px; overflow: hidden;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.07);
+    cursor: pointer; transition: box-shadow 0.15s, transform 0.15s;
+  }
+  .sg-cull-card:hover { box-shadow: 0 4px 14px rgba(0,0,0,0.12); transform: translateY(-2px); }
+  .sg-cull-img-wrap { position: relative; }
+  .sg-cull-img-wrap img  { width: 100%; aspect-ratio: 3/4; object-fit: cover; display: block; }
+  .sg-cull-placeholder   { width: 100%; aspect-ratio: 3/4; background: #f0f0f0; display: flex; align-items: center; justify-content: center; font-size: 28px; color: #ccc; }
+  .sg-cull-badge {
+    position: absolute; top: 7px; left: 7px;
+    font-size: 10px; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase;
+    padding: 2px 7px; border-radius: 4px;
+  }
+  .sg-badge-toss   { background: #ef4444; color: #fff; }
+  .sg-badge-donate { background: #f59e0b; color: #fff; }
+  .sg-cull-info    { padding: 8px 10px 11px; }
+  .sg-cull-id      { font-size: 10px; color: #bbb; font-weight: 600; margin-bottom: 2px; }
+  .sg-cull-sub     { font-size: 12px; font-weight: 600; text-transform: capitalize; }
+  .sg-cull-reason  { font-size: 11px; color: #888; margin-top: 4px; line-height: 1.4; }
+
+  /* ── Bottom tab bar (mobile) ────────────────────────────────────── */
+  .bottom-nav {
+    display: none;
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: #fff;
+    border-top: 1px solid #e5e5e5;
+    z-index: 100;
+    padding: 6px 0 env(safe-area-inset-bottom, 0);
+  }
+  .bottom-nav-inner {
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+  }
+  .bottom-nav-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    background: none;
+    border: none;
+    font-size: 10px;
+    font-weight: 500;
+    color: #999;
+    padding: 6px 12px;
+    cursor: pointer;
+    transition: color 0.15s;
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .bottom-nav-btn.active { color: #1a1a1a; }
+  .bottom-nav-icon { font-size: 22px; line-height: 1; }
+  .bottom-nav-btn-add {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    background: #1a1a1a;
+    color: #fff;
+    border: none;
+    font-size: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    margin-top: -18px;
+    box-shadow: 0 2px 12px rgba(0,0,0,0.25);
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* ── Quick Add modal ────────────────────────────────────────────── */
+  .quick-add-wrap {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.5);
+    z-index: 250;
+    align-items: flex-end;
+    justify-content: center;
+  }
+  .quick-add-wrap.open { display: flex; }
+  .quick-add-sheet {
+    background: #fff;
+    border-radius: 20px 20px 0 0;
+    width: 100%;
+    max-width: 500px;
+    max-height: 85vh;
+    overflow-y: auto;
+    padding: 24px 20px env(safe-area-inset-bottom, 20px);
+    animation: slideUp 0.25s ease-out;
+  }
+  @keyframes slideUp {
+    from { transform: translateY(100%); }
+    to   { transform: translateY(0); }
+  }
+  .quick-add-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+  }
+  .quick-add-header h2 { font-size: 18px; font-weight: 600; }
+  .quick-add-close {
+    background: none;
+    border: none;
+    font-size: 22px;
+    color: #888;
+    cursor: pointer;
+    padding: 4px;
+  }
+  .quick-add-capture {
+    width: 100%;
+    aspect-ratio: 1/1;
+    max-height: 400px;
+    border-radius: 12px;
+    border: 2px dashed #ddd;
+    background: #fafaf8;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    cursor: pointer;
+    transition: border-color 0.15s, background 0.15s;
+    margin-bottom: 16px;
+    overflow: hidden;
+    position: relative;
+  }
+  .quick-add-capture:hover { border-color: #aaa; background: #f5f4f2; }
+  .quick-add-capture.has-image { border-style: solid; border-color: #ddd; }
+  .quick-add-capture img {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    background: #f8f7f5;
+  }
+  .quick-add-capture-icon { font-size: 40px; color: #ccc; }
+  .quick-add-capture-text { font-size: 13px; color: #aaa; }
+  .quick-add-fields {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+  .quick-add-fields select,
+  .quick-add-fields input {
+    width: 100%;
+    padding: 12px 14px;
+    font-size: 16px;
+    border: 1px solid #ddd;
+    border-radius: 10px;
+    font-family: inherit;
+    background: #fafafa;
+    outline: none;
+    -webkit-appearance: none;
+  }
+  .quick-add-fields select:focus,
+  .quick-add-fields input:focus { border-color: #1a1a1a; background: #fff; }
+  .quick-add-submit {
+    width: 100%;
+    padding: 14px;
+    font-size: 16px;
+    font-weight: 600;
+    background: #1a1a1a;
+    color: #fff;
+    border: none;
+    border-radius: 12px;
+    cursor: pointer;
+    font-family: inherit;
+    touch-action: manipulation;
+  }
+  .quick-add-submit:disabled { background: #ccc; cursor: not-allowed; }
+
+  /* ── Fit Checker ────────────────────────────────────────────────── */
+  .fit-check-wrap {
+    max-width: 500px;
+    margin: 0 auto;
+    padding: 24px 20px 100px;
+  }
+  .fit-check-result {
+    background: #fff;
+    border-radius: 16px;
+    padding: 24px;
+    margin-top: 20px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+  }
+  .fit-score {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 16px;
+  }
+  .fit-score-num {
+    width: 56px;
+    height: 56px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 22px;
+    font-weight: 700;
+    color: #fff;
+    flex-shrink: 0;
+  }
+  .fit-score-num.high { background: #16a34a; }
+  .fit-score-num.mid  { background: #f59e0b; }
+  .fit-score-num.low  { background: #ef4444; }
+  .fit-verdict { font-size: 18px; font-weight: 600; }
+  .fit-reasoning { font-size: 14px; color: #555; line-height: 1.6; margin-bottom: 16px; }
+  .fit-section-label { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: #aaa; margin-bottom: 8px; }
+  .fit-pairs { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
+  .fit-pair-item {
+    width: 60px;
+    border-radius: 8px;
+    overflow: hidden;
+    background: #f5f5f5;
+  }
+  .fit-pair-item img { width: 100%; aspect-ratio: 3/4; object-fit: contain; background: #f8f7f5; display: block; }
+  .fit-pair-label { font-size: 9px; text-align: center; padding: 2px 4px; color: #888; }
+  .fit-concerns { font-size: 13px; color: #b91c1c; line-height: 1.5; }
+  .fit-gaps { font-size: 13px; color: #16a34a; line-height: 1.5; margin-bottom: 12px; }
+
+  /* ── Mobile responsive ──────────────────────────────────────────── */
+  @media (max-width: 640px) {
+    .bottom-nav { display: block; }
+    header .view-toggle { display: none; }
+    header { padding: 10px 16px; grid-template-columns: 1fr auto; }
+    .count { font-size: 12px; }
+
+    .grid {
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      padding: 12px 12px 80px;
+    }
+    .card-body { padding: 6px 8px 8px; }
+    .card-name { font-size: 12px; }
+    .card-brand { font-size: 10px; }
+    .card-tags { display: none; }
+    .card-meta { display: none; }
+    .drag-hint { padding: 0 12px 4px; font-size: 10px; }
+
+    .filters {
+      padding: 8px 12px;
+      gap: 6px;
+      top: 41px;
+    }
+    .filters input[type=search] { width: 100%; flex: 1; }
+    .filters select { font-size: 12px; padding: 5px 6px; flex: 1; min-width: 0; }
+    .btn-add { display: none; }
+
+    /* Full-screen modal on mobile */
+    .modal {
+      width: 100vw;
+      max-width: 100vw;
+      height: 100dvh;
+      max-height: 100dvh;
+      border-radius: 0;
+    }
+    .detail-body {
+      flex-direction: column;
+      gap: 16px;
+      padding: 16px;
+    }
+    .detail-img-wrap {
+      flex: none;
+      width: 100%;
+    }
+    .detail-img {
+      aspect-ratio: 3/4;
+      max-height: 50vh;
+      width: 100%;
+    }
+    .field-row {
+      grid-template-columns: 1fr;
+      gap: 2px;
+    }
+    .field-label {
+      padding-top: 0;
+      margin-bottom: -2px;
+    }
+    .field-input {
+      font-size: 16px;
+      padding: 8px 10px;
+    }
+    .field-input.textarea {
+      font-size: 16px;
+    }
+    select.field-input {
+      font-size: 16px;
+    }
+
+    /* Hide desktop nav arrows on mobile */
+    .nav-arrow { display: none !important; }
+    .nav-counter { bottom: 74px; }
+
+    /* Outfit modal */
+    .outfit-modal {
+      width: 100vw;
+      max-width: 100vw;
+      height: 100dvh;
+      max-height: 100dvh;
+      border-radius: 0;
+    }
+    .outfit-modal-body { flex-direction: column; }
+    .outfit-slots {
+      width: 100%;
+      border-right: none;
+      border-bottom: 1px solid #eee;
+      flex-direction: row;
+      overflow-x: auto;
+      padding: 10px;
+      gap: 8px;
+    }
+    .outfit-slot { min-width: 100px; flex-shrink: 0; }
+
+    /* Shelf */
+    .shelf-wrap { height: calc(100dvh - 41px - 56px); }
+
+    /* Style guide */
+    #style-guide-wrap { padding: 20px 12px 80px; }
+    .sg-purchase-card { padding: 14px; }
+    .sg-purchase-options { flex-direction: column; }
+    .sg-purchase-option { min-width: unset; }
+
+    /* Fit checker */
+    .fit-check-wrap { padding: 16px 12px 80px; }
+  }
+
+  @media (max-width: 380px) {
+    .grid { gap: 8px; padding: 8px 8px 80px; }
+    .card-body { padding: 5px 6px 6px; }
+    .card-name { font-size: 11px; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>WARDROBE</h1>
+  <div class="view-toggle">
+    <button class="active" data-view="wardrobe" onclick="setView('wardrobe')">Wardrobe</button>
+    <button data-view="outfits" onclick="setView('outfits')">Outfits</button>
+    <button data-view="shelf" onclick="setView('shelf')">Shelf</button>
+    <button data-view="style" onclick="setView('style')">Style</button>
+    <button data-view="fitcheck" onclick="setView('fitcheck')">Fit Check</button>
+  </div>
+  <span class="count" id="count"></span>
+</header>
+
+<div class="filters">
+  <input type="search" id="search" placeholder="Search..." oninput="applyFilters()">
+  <select id="filter-category" onchange="applyFilters()">
+    <option value="">All categories</option>
+  </select>
+  <select id="filter-weather" onchange="applyFilters()">
+    <option value="">All weather</option>
+    <option value="hot">Hot</option>
+    <option value="warm">Warm</option>
+    <option value="mild">Mild</option>
+    <option value="cool">Cool</option>
+    <option value="cold">Cold</option>
+  </select>
+  <select id="filter-formality" onchange="applyFilters()">
+    <option value="">Any formality</option>
+    <option value="1">1 — Casual</option>
+    <option value="2">2 — Smart casual</option>
+    <option value="3">3 — Business casual</option>
+    <option value="4">4 — Business</option>
+    <option value="5">5 — Formal</option>
+  </select>
+  <select id="filter-fit" onchange="applyFilters()">
+    <option value="">All fits</option>
+  </select>
+  <button class="btn-add" onclick="openAddModal()">+ Add item</button>
+</div>
+
+<div class="drag-hint" id="drag-hint">Drag to reorder &nbsp;·&nbsp; <button id="reset-order-btn" onclick="resetOrder()">Reset</button></div>
+<div class="grid" id="grid"></div>
+
+<!-- Shelf view -->
+<div id="shelf-wrap" class="shelf-wrap" style="display:none">
+  <!-- In Rotation -->
+  <div class="shelf" id="shelf-active"
+       ondragover="shelfDragOver(event,'active')"
+       ondragleave="shelfDragLeave(event,'active')"
+       ondrop="shelfDrop(event,'active')">
+    <div class="shelf-header">
+      <span class="shelf-title">In Rotation</span>
+      <span class="shelf-count" id="shelf-active-count"></span>
+      <span class="shelf-hint">drag clothes here to wear in public</span>
+      <label style="display:flex;align-items:center;gap:8px;font-size:12px;color:#aaa;margin-left:auto">
+        <span style="font-size:16px">⊖</span>
+        <input type="range" id="shelf-zoom" min="60" max="200" value="88" step="4"
+               style="width:90px;accent-color:#1a1a1a;cursor:pointer"
+               oninput="setShelfZoom(this.value)">
+        <span style="font-size:16px">⊕</span>
+      </label>
+    </div>
+    <div class="shelf-grid" id="shelf-active-grid"></div>
+  </div>
+  <!-- House -->
+  <div class="shelf" id="shelf-home"
+       ondragover="shelfDragOver(event,'home')"
+       ondragleave="shelfDragLeave(event,'home')"
+       ondrop="shelfDrop(event,'home')">
+    <div class="shelf-header">
+      <span class="shelf-title">House</span>
+      <span class="shelf-count" id="shelf-home-count"></span>
+      <span class="shelf-hint">drag clothes here to keep off the shelf</span>
+    </div>
+    <div class="shelf-grid" id="shelf-home-grid"></div>
+  </div>
+</div>
+
+<!-- Outfits view -->
+<div id="outfit-grid-wrap" style="display:none">
+  <div style="padding:16px 24px 0;display:flex;justify-content:flex-end">
+    <button class="btn-new-outfit" onclick="openOutfitBuilder(null)">+ New Outfit</button>
+  </div>
+  <div class="outfit-grid" id="outfit-grid"></div>
+</div>
+
+<!-- Style Guide view -->
+<div id="style-guide-wrap" style="display:none">
+  <div style="max-width:920px;margin:0 auto;padding:32px 24px 64px">
+
+    <div class="sg-block">
+      <div class="sg-section-label">What to purchase</div>
+      <div class="sg-purchase-list" id="sg-purchase-list">
+        <div class="empty" style="padding:24px 0"><p>Loading…</p></div>
+      </div>
+    </div>
+
+    <div class="sg-block">
+      <div class="sg-section-label">Cull — toss (damaged)</div>
+      <div class="sg-cull-grid" id="sg-cull-toss"></div>
+    </div>
+
+
+  </div>
+</div>
+
+<!-- Outfit builder overlay -->
+<div class="overlay" id="outfit-overlay" onclick="closeOutfitOverlay(event)">
+  <div class="outfit-modal">
+    <div class="outfit-modal-header">
+      <h2 id="outfit-modal-title">New Outfit</h2>
+      <button class="modal-close" onclick="document.getElementById('outfit-overlay').classList.remove('open')">×</button>
+    </div>
+    <div class="outfit-modal-body">
+      <!-- Left: slots panel -->
+      <div class="outfit-slots">
+        <div class="outfit-slot" id="slot-top" onclick="selectSlot('top')">
+          <div class="outfit-slot-label">Top</div>
+          <div class="outfit-slot-content" id="slot-top-content"><span class="outfit-slot-empty">Click to pick</span></div>
+          <button class="outfit-slot-remove" onclick="removeFromSlot(event,'top')">×</button>
+        </div>
+        <div class="outfit-slot" id="slot-bottom" onclick="selectSlot('bottom')">
+          <div class="outfit-slot-label">Bottom</div>
+          <div class="outfit-slot-content" id="slot-bottom-content"><span class="outfit-slot-empty">Click to pick</span></div>
+          <button class="outfit-slot-remove" onclick="removeFromSlot(event,'bottom')">×</button>
+        </div>
+        <div class="outfit-slot" id="slot-shoes" onclick="selectSlot('shoes')">
+          <div class="outfit-slot-label">Shoes</div>
+          <div class="outfit-slot-content" id="slot-shoes-content"><span class="outfit-slot-empty">Click to pick</span></div>
+          <button class="outfit-slot-remove" onclick="removeFromSlot(event,'shoes')">×</button>
+        </div>
+        <div class="outfit-slot" id="slot-outerwear" onclick="selectSlot('outerwear')">
+          <div class="outfit-slot-label">Outerwear</div>
+          <div class="outfit-slot-content" id="slot-outerwear-content"><span class="outfit-slot-empty">Click to pick</span></div>
+          <button class="outfit-slot-remove" onclick="removeFromSlot(event,'outerwear')">×</button>
+        </div>
+      </div>
+      <!-- Right: item picker -->
+      <div class="outfit-picker">
+        <div class="outfit-picker-header">
+          <h3 id="picker-title">Select a slot →</h3>
+          <input class="outfit-picker-search" id="picker-search" type="search" placeholder="Search..." oninput="renderPickerGrid()">
+        </div>
+        <div class="outfit-picker-grid" id="picker-grid">
+          <div style="grid-column:1/-1;padding:30px;color:#aaa;text-align:center;font-size:13px">Select a slot on the left to browse items</div>
+        </div>
+      </div>
+    </div>
+    <!-- Bottom meta bar -->
+    <div class="outfit-meta">
+      <input id="outfit-name" placeholder="Outfit name...">
+      <select id="outfit-activity">
+        <option value="">Activity...</option>
+        <option value="casual">Casual</option>
+        <option value="work">Work</option>
+        <option value="formal">Formal</option>
+        <option value="athletic">Athletic</option>
+        <option value="travel">Travel</option>
+        <option value="date">Date</option>
+        <option value="outdoor">Outdoor</option>
+      </select>
+      <button class="btn btn-danger" id="outfit-delete-btn" onclick="deleteOutfit()" style="display:none">Delete</button>
+      <button class="btn btn-primary" onclick="saveOutfit()">Save outfit</button>
+    </div>
+  </div>
+</div>
+
+<!-- Prev / Next arrows (shown when detail modal is open) -->
+<button class="nav-arrow" id="nav-prev" onclick="navigateDetail(-1)" style="display:none">‹</button>
+<button class="nav-arrow" id="nav-next" onclick="navigateDetail(1)" style="display:none">›</button>
+<div class="nav-counter" id="nav-counter" style="display:none"></div>
+
+<!-- Detail / Edit overlay -->
+<div class="overlay" id="overlay" onclick="closeModal(event)">
+  <div class="modal" id="modal"></div>
+</div>
+
+<!-- Bottom nav (mobile) -->
+<nav class="bottom-nav" id="bottom-nav">
+  <div class="bottom-nav-inner">
+    <button class="bottom-nav-btn active" data-view="wardrobe" onclick="setView('wardrobe')">
+      <span class="bottom-nav-icon">👔</span>
+      <span>Wardrobe</span>
+    </button>
+    <button class="bottom-nav-btn" data-view="outfits" onclick="setView('outfits')">
+      <span class="bottom-nav-icon">✨</span>
+      <span>Outfits</span>
+    </button>
+    <button class="bottom-nav-btn-add" onclick="openQuickAdd()" title="Quick Add">+</button>
+    <button class="bottom-nav-btn" data-view="shelf" onclick="setView('shelf')">
+      <span class="bottom-nav-icon">📦</span>
+      <span>Shelf</span>
+    </button>
+    <button class="bottom-nav-btn" data-view="style" onclick="setView('style')">
+      <span class="bottom-nav-icon">🛒</span>
+      <span>Style</span>
+    </button>
+  </div>
+</nav>
+
+<!-- Quick Add sheet -->
+<div class="quick-add-wrap" id="quick-add-wrap" onclick="if(event.target===this)closeQuickAdd()">
+  <div class="quick-add-sheet">
+    <div class="quick-add-header">
+      <h2>Quick Add</h2>
+      <button class="quick-add-close" onclick="closeQuickAdd()">&times;</button>
+    </div>
+    <div class="quick-add-capture" id="quick-add-capture" onclick="document.getElementById('quick-add-file').click()">
+      <span class="quick-add-capture-icon">📷</span>
+      <span class="quick-add-capture-text">Tap to take a photo or choose from library</span>
+      <img id="quick-add-preview" style="display:none">
+      <input type="file" id="quick-add-file" accept="image/*" capture="environment" style="display:none" onchange="previewQuickAdd(this)">
+    </div>
+    <div class="quick-add-fields">
+      <select id="quick-add-category">
+        <option value="">Category...</option>
+        <option value="outerwear">Outerwear</option>
+        <option value="top">Top</option>
+        <option value="bottom">Bottom</option>
+        <option value="shoes">Shoes</option>
+        <option value="accessory">Accessory</option>
+      </select>
+      <input id="quick-add-subcategory" placeholder="Subcategory (optional)" list="subcat-dl-qa">
+      <datalist id="subcat-dl-qa"></datalist>
+    </div>
+    <button class="quick-add-submit" id="quick-add-submit" onclick="submitQuickAdd()">Add to Wardrobe</button>
+  </div>
+</div>
+
+<!-- Fit Checker view -->
+<div id="fit-check-view" style="display:none">
+  <div class="fit-check-wrap">
+    <h2 style="font-size:20px;font-weight:700;margin-bottom:4px">Fit Checker</h2>
+    <p style="font-size:13px;color:#888;margin-bottom:20px">Take a photo while shopping — see how it fits your wardrobe</p>
+
+    <div class="quick-add-capture" id="fit-check-capture" onclick="document.getElementById('fit-check-file').click()">
+      <span class="quick-add-capture-icon">📸</span>
+      <span class="quick-add-capture-text">Tap to photograph a potential purchase</span>
+      <img id="fit-check-preview" style="display:none">
+      <input type="file" id="fit-check-file" accept="image/*" capture="environment" style="display:none" onchange="previewFitCheck(this)">
+    </div>
+
+    <input id="fit-check-context" placeholder="What's it for? e.g. date nights, work..." style="width:100%;padding:12px 14px;font-size:16px;border:1px solid #ddd;border-radius:10px;font-family:inherit;background:#fafafa;outline:none;margin-bottom:12px;box-sizing:border-box">
+
+    <button class="quick-add-submit" id="fit-check-submit" onclick="runFitCheck()" disabled>Check Fit</button>
+
+    <div id="fit-check-result"></div>
+  </div>
+</div>
+
+<!-- Lightbox -->
+<div class="lightbox" id="lightbox" onclick="closeLightbox()">
+  <button class="lightbox-close" onclick="closeLightbox()">×</button>
+  <img id="lightbox-img" src="" onclick="event.stopPropagation()">
+</div>
+
+<script>
+let allItems = [];
+let meta = {};
+let currentFilteredItems = [];
+let currentDetailIndex = -1;
+let isDetailOpen = false;
+
+// Outfit state
+let allOutfits = [];
+let currentView = 'wardrobe';
+let activeSlot = null;
+let outfitSlots = { top: null, bottom: null, shoes: null, outerwear: null };
+let editingOutfitId = null;
+
+const SLOT_CATEGORIES = { top: 'top', bottom: 'bottom', shoes: 'shoes', outerwear: 'outerwear' };
+const SLOT_LABELS = { top: 'Top', bottom: 'Bottom', shoes: 'Shoes', outerwear: 'Outerwear' };
+const ACTIVITY_COLORS = {
+  casual: '#6b7280', work: '#2563eb', formal: '#1a1a1a',
+  athletic: '#16a34a', travel: '#d97706', date: '#db2777', outdoor: '#059669'
+};
+
+const FORMALITY_LABELS = {1:'Casual',2:'Smart casual',3:'Business casual',4:'Business',5:'Formal'};
+
+async function init() {
+  [allItems, meta, allOutfits] = await Promise.all([
+    fetch('/api/items').then(r => r.json()),
+    fetch('/api/meta').then(r => r.json()),
+    fetch('/api/outfits').then(r => r.json())
+  ]);
+  populateFilterOptions();
+  renderGrid(allItems);
+}
+
+function populateFilterOptions() {
+  const cat = document.getElementById('filter-category');
+  meta.categories.forEach(c => {
+    if (!c) return;
+    const o = document.createElement('option');
+    o.value = c; o.textContent = c.charAt(0).toUpperCase() + c.slice(1);
+    cat.appendChild(o);
+  });
+  const fit = document.getElementById('filter-fit');
+  meta.fits.forEach(f => {
+    if (!f) return;
+    const o = document.createElement('option');
+    o.value = f; o.textContent = f.charAt(0).toUpperCase() + f.slice(1);
+    fit.appendChild(o);
+  });
+}
+
+function applyFilters() {
+  const search = document.getElementById('search').value.toLowerCase();
+  const category = document.getElementById('filter-category').value;
+  const weather = document.getElementById('filter-weather').value;
+  const formality = document.getElementById('filter-formality').value;
+  const fit = document.getElementById('filter-fit').value;
+
+  const filtered = allItems.filter(item => {
+    if (category && item.category !== category) return false;
+    if (weather && !item.weather?.includes(weather)) return false;
+    if (formality && String(item.formality) !== formality) return false;
+    if (fit && item.fit !== fit) return false;
+    if (search) {
+      const haystack = [item.id, item.subcategory, item.colors, item.brand, item.notes, item.category]
+        .join(' ').toLowerCase();
+      if (!haystack.includes(search)) return false;
+    }
+    return true;
+  });
+
+  renderGrid(filtered);
+}
+
+// --- Drag & drop order ---
+let customOrder = JSON.parse(localStorage.getItem('wardrobeOrder') || 'null'); // array of item IDs in order
+
+function hasActiveFilters() {
+  const search = document.getElementById('search').value.trim();
+  const cat = document.getElementById('filter-category').value;
+  const weather = document.getElementById('filter-weather').value;
+  const formality = document.getElementById('filter-formality').value;
+  const fit = document.getElementById('filter-fit').value;
+  return !!(search || cat || weather || formality || fit);
+}
+
+function applyCustomOrder(items) {
+  if (!customOrder) return items;
+  const orderMap = new Map(customOrder.map((id, i) => [id, i]));
+  return [...items].sort((a, b) => {
+    const ai = orderMap.has(a.id) ? orderMap.get(a.id) : Infinity;
+    const bi = orderMap.has(b.id) ? orderMap.get(b.id) : Infinity;
+    return ai - bi;
+  });
+}
+
+function saveCustomOrder() {
+  customOrder = currentFilteredItems.map(item => item.id);
+  localStorage.setItem('wardrobeOrder', JSON.stringify(customOrder));
+}
+
+function resetOrder() {
+  customOrder = null;
+  localStorage.removeItem('wardrobeOrder');
+  applyFilters();
+}
+
+function initDragDrop(grid) {
+  const cards = grid.querySelectorAll('.card[draggable="true"]');
+  let dragSrc = null;
+
+  cards.forEach(card => {
+    card.addEventListener('dragstart', e => {
+      dragSrc = card;
+      card.classList.add('dragging');
+      e.dataTransfer.effectAllowed = 'move';
+    });
+    card.addEventListener('dragend', () => {
+      card.classList.remove('dragging');
+      grid.querySelectorAll('.card').forEach(c => c.classList.remove('drag-over'));
+      // reorder currentFilteredItems to match current DOM order, keyed by item id (stable across drags)
+      const idMap = new Map(currentFilteredItems.map(item => [item.id, item]));
+      const newOrder = [...grid.querySelectorAll('.card')].map(c => idMap.get(c.dataset.id)).filter(Boolean);
+      currentFilteredItems = newOrder;
+      saveCustomOrder();
+    });
+    card.addEventListener('dragover', e => {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      if (card !== dragSrc) {
+        grid.querySelectorAll('.card').forEach(c => c.classList.remove('drag-over'));
+        card.classList.add('drag-over');
+      }
+    });
+    card.addEventListener('dragleave', () => card.classList.remove('drag-over'));
+    card.addEventListener('drop', e => {
+      e.preventDefault();
+      if (!dragSrc || dragSrc === card) return;
+      card.classList.remove('drag-over');
+      // swap in DOM
+      const srcParent = dragSrc.parentNode;
+      const tgtParent = card.parentNode;
+      if (srcParent === tgtParent) {
+        const allCards = [...grid.querySelectorAll('.card')];
+        const srcIdx = allCards.indexOf(dragSrc);
+        const tgtIdx = allCards.indexOf(card);
+        if (srcIdx < tgtIdx) {
+          grid.insertBefore(dragSrc, card.nextSibling);
+        } else {
+          grid.insertBefore(dragSrc, card);
+        }
+      }
+    });
+  });
+}
+
+function renderGrid(items) {
+  const filtersActive = hasActiveFilters();
+  const orderedItems = filtersActive ? items : applyCustomOrder(items);
+  currentFilteredItems = orderedItems;
+  document.getElementById('count').textContent = `${orderedItems.length} items`;
+
+  const dragHint = document.getElementById('drag-hint');
+  if (dragHint) {
+    dragHint.classList.toggle('visible', !filtersActive && orderedItems.length > 0);
+  }
+
+  const grid = document.getElementById('grid');
+  if (!orderedItems.length) {
+    grid.innerHTML = '<div class="empty"><h3>No items found</h3><p>Try adjusting filters</p></div>';
+    return;
+  }
+
+  grid.innerHTML = orderedItems.map((item, idx) => `
+    <div class="card" data-idx="${idx}" data-id="${item.id}"${!filtersActive ? ' draggable="true"' : ''} title="${item.id}">
+      ${item.image_src
+        ? `<img class="card-img" src="${item.image_src}" loading="lazy" onerror="this.style.display='none'">`
+        : `<div class="card-img-placeholder">👕</div>`}
+      <div class="card-body">
+        <div class="card-name">${item.subcategory || item.category || ''}</div>
+        ${item.brand ? `<div class="card-brand">${item.brand}</div>` : ''}
+        ${item.colors ? `<div class="card-meta">${item.colors}</div>` : ''}
+        <div class="card-tags">
+          ${item.formality ? `<span class="tag formality-${item.formality}">${FORMALITY_LABELS[item.formality] || item.formality}</span>` : ''}
+        </div>
+      </div>
+    </div>
+  `).join('');
+
+  // Attach click listeners (no inline onclick — drag events and click conflict otherwise)
+  grid.querySelectorAll('.card').forEach(card => {
+    card.addEventListener('click', () => {
+      // Use current DOM position — currentFilteredItems is kept in sync with DOM order after each drag
+      const domCards = [...grid.querySelectorAll('.card')];
+      const domIdx = domCards.indexOf(card);
+      if (domIdx !== -1) openDetailByIndex(domIdx);
+    });
+  });
+
+  if (!filtersActive) initDragDrop(grid);
+}
+
+function openDetailByIndex(idx) {
+  currentDetailIndex = idx;
+  const item = currentFilteredItems[idx];
+  if (item) openDetail(item.id);
+}
+
+function navigateDetail(dir) {
+  const newIdx = currentDetailIndex + dir;
+  if (newIdx < 0 || newIdx >= currentFilteredItems.length) return;
+  openDetailByIndex(newIdx);
+}
+
+function updateNavArrows() {
+  const prev = document.getElementById('nav-prev');
+  const next = document.getElementById('nav-next');
+  const counter = document.getElementById('nav-counter');
+  if (!isDetailOpen) {
+    prev.style.display = next.style.display = counter.style.display = 'none';
+    return;
+  }
+  prev.style.display = next.style.display = counter.style.display = '';
+  prev.disabled = currentDetailIndex <= 0;
+  next.disabled = currentDetailIndex >= currentFilteredItems.length - 1;
+  counter.textContent = `${currentDetailIndex + 1} / ${currentFilteredItems.length}`;
+}
+
+const SUBCATS = [
+  'blazer','bomber','button-down','casual shirt','chelsea boots','chinos','derby',
+  'dress pants','dress shirt','dress trousers','flannel shirt','fleece','formal loafer',
+  'henley','hoodie','jeans','leather sneakers','long sleeve tee','overshirt','oxford',
+  'polo sweater','pullover','quarter-zip','running','sandals','sneakers','softshell',
+  'suit jacket','sweater','sweatshirt','t-shirt','thermal','track jacket','tuxedo jacket',
+  'water shoes','windbreaker','wingtip','wool long sleeve tee','work boots','zip-up',
+  'athletic jacket','athletic top'
+].sort();
+
+function fSelect(name, options, current) {
+  const opts = options.map(o => `<option value="${o}" ${current===o?'selected':''}>${o}</option>`).join('');
+  return `<select class="field-input" name="${name}" onchange="markDirty()"><option value="">—</option>${opts}</select>`;
+}
+function fSubcat(current) {
+  const id = 'subcat-dl';
+  const opts = SUBCATS.map(s => `<option value="${s}">`).join('');
+  return `<input class="field-input" name="subcategory" value="${current||''}" list="${id}" placeholder="e.g. chinos" oninput="markDirty()">
+          <datalist id="${id}">${opts}</datalist>`;
+}
+function fInput(name, val, placeholder='') {
+  return `<input class="field-input" name="${name}" value="${val||''}" placeholder="${placeholder}" oninput="markDirty()">`;
+}
+function fTextarea(name, val) {
+  return `<textarea class="field-input textarea" name="${name}" oninput="markDirty()">${val||''}</textarea>`;
+}
+function fWeather(current) {
+  const opts = ['hot','warm','mild','cool','cold'];
+  const active = (current||'').split('|').map(s=>s.trim().toLowerCase());
+  return `<div class="weather-checks">${opts.map(w =>
+    `<label><input type="checkbox" name="weather_${w}" ${active.includes(w)?'checked':''}
+      onchange="markDirty()"><span>${w}</span></label>`
+  ).join('')}</div>`;
+}
+function markDirty() {
+  const dot = document.getElementById('save-dot');
+  if (dot) dot.style.display = 'inline-block';
+}
+
+async function openDetail(id) {
+  const item = await fetch(`/api/items/${id}`).then(r => r.json());
+  const idx = currentFilteredItems.findIndex(i => i.id === id);
+  if (idx !== -1) currentDetailIndex = idx;
+
+  const cats = ['outerwear','top','bottom','shoes','accessory'];
+  const patterns = ['solid','plaid','check','stripe','print','graphic','colorblock','texture','heather','herringbone','quilted','novelty print','buffalo check'];
+  const fits = ['regular','slim','relaxed','athletic','classic'];
+
+  const modal = document.getElementById('modal');
+  modal.innerHTML = `
+    <div class="modal-header">
+      <h2>${item.id} — ${item.subcategory || item.category}</h2>
+      <button class="modal-close" onclick="closeModalDirect()">×</button>
+    </div>
+    <div class="detail-body">
+      <div class="detail-img-wrap">
+        ${item.image_src
+          ? `<img class="detail-img" id="detail-img" src="${item.image_src}" onclick="openLightbox(this.src)" title="Click to enlarge">`
+          : `<div style="border-radius:8px;aspect-ratio:3/4;background:#f0f0f0;display:flex;align-items:center;justify-content:center;font-size:40px;color:#ccc" id="detail-img">👕</div>`}
+        <input type="file" id="detail-file-input" accept="image/*" style="display:none" onchange="previewDetailImg(this)">
+        <button class="img-replace-btn" onclick="document.getElementById('detail-file-input').click()">📷 Replace photo</button>
+      </div>
+      <div class="detail-fields">
+        <div class="field-row"><div class="field-label">Category</div>${fSelect('category', cats, item.category)}</div>
+        <div class="field-row"><div class="field-label">Subcategory</div>${fSubcat(item.subcategory)}</div>
+        <div class="field-row"><div class="field-label">Colors</div>${fInput('colors', item.colors, 'e.g. navy|white')}</div>
+        <div class="field-row"><div class="field-label">Pattern</div>${fSelect('pattern', patterns, item.pattern)}</div>
+        <div class="field-row"><div class="field-label">Formality</div>
+          <select class="field-input" name="formality" onchange="markDirty()">
+            <option value="">—</option>
+            ${[1,2,3,4,5].map(n=>`<option value="${n}" ${item.formality==n?'selected':''}>${n} — ${FORMALITY_LABELS[n]}</option>`).join('')}
+          </select>
+        </div>
+        <div class="field-row"><div class="field-label">Weather</div>${fWeather(item.weather)}</div>
+        <div class="field-row"><div class="field-label">Fit</div>${fSelect('fit', fits, item.fit)}</div>
+        <div class="field-row"><div class="field-label">Brand</div>${fInput('brand', item.brand)}</div>
+        <div class="field-row"><div class="field-label">Size</div>${fInput('size_tag', item.size_tag, 'e.g. M, 32x32')}</div>
+        <div class="field-row"><div class="field-label">Notes</div>${fTextarea('notes', item.notes)}</div>
+        <div class="field-row"><div class="field-label">Pairs with</div>${fInput('pairs_well_with', item.pairs_well_with, 'e.g. W001|W002')}</div>
+        <div class="field-row"><div class="field-label">Tailored</div>
+          <label style="display:flex;align-items:center;gap:6px;cursor:pointer;padding:4px 0">
+            <input type="checkbox" name="tailored" value="1" ${item.tailored?'checked':''} onchange="markDirty()" style="width:15px;height:15px;cursor:pointer;accent-color:#1a1a1a">
+            <span style="font-size:14px;color:#1a1a1a">Custom fit / altered</span>
+          </label>
+        </div>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-danger" onclick="deleteItem('${item.id}')">Delete</button>
+      <button class="btn btn-secondary" onclick="closeModalDirect()">Close</button>
+      <button class="btn btn-primary" id="save-btn" onclick="saveDetailItem('${item.id}')">
+        <span class="btn-save-indicator" id="save-dot"></span>Save
+      </button>
+    </div>
+  `;
+  isDetailOpen = true;
+  document.getElementById('overlay').classList.add('open');
+  updateNavArrows();
+}
+
+function previewDetailImg(input) {
+  if (input.files && input.files[0]) {
+    const img = document.getElementById('detail-img');
+    img.src = URL.createObjectURL(input.files[0]);
+    img.style.display = 'block';
+    markDirty();
+  }
+}
+
+async function saveDetailItem(id) {
+  const modal = document.getElementById('modal');
+  const form = new FormData();
+  modal.querySelectorAll('.field-input[name]').forEach(el => {
+    form.append(el.name, el.value);
+  });
+  // Weather checkboxes -> pipe-separated string
+  const weathers = ['hot','warm','mild','cool','cold'];
+  const checkedWeather = weathers.filter(w => modal.querySelector(`input[name="weather_${w}"]`)?.checked);
+  form.append('weather', checkedWeather.join('|'));
+  // Tailored checkbox
+  const tailoredEl = modal.querySelector('input[name="tailored"]');
+  if (tailoredEl) form.append('tailored', tailoredEl.checked ? '1' : '0');
+  const fileInput = document.getElementById('detail-file-input');
+  if (fileInput && fileInput.files[0]) form.append('image', fileInput.files[0]);
+
+  const res = await fetch(`/api/items/${id}`, { method: 'PUT', body: form });
+  if (res.ok) {
+    allItems = await fetch('/api/items').then(r => r.json());
+    applyFilters();
+    // Update header title and clear dirty dot
+    const saved = await res.clone().json();
+    const modal = document.getElementById('modal');
+    const h2 = modal.querySelector('h2');
+    if (h2) h2.textContent = `${saved.id} — ${saved.subcategory || saved.category}`;
+    const dot = document.getElementById('save-dot');
+    if (dot) dot.style.display = 'none';
+  } else {
+    alert('Save failed');
+  }
+}
+
+function openAddModal() { openFormModal(null); }
+
+function openFormModal(item) {
+  const isEdit = !!item;
+  const modal = document.getElementById('modal');
+
+  const cats = ['outerwear','top','bottom','shoes','accessory'];
+  const patterns = ['solid','plaid','check','stripe','print','graphic','colorblock','texture','heather','herringbone','quilted','novelty print','buffalo check'];
+  const weathers = ['hot','warm','mild','cool','cold'];
+  const fits = ['regular','slim','relaxed','athletic','classic'];
+
+  function sel(name, options, current) {
+    const opts = options.map(o => `<option value="${o}" ${current===o?'selected':''}>${o}</option>`).join('');
+    return `<select name="${name}"><option value="">—</option>${opts}</select>`;
+  }
+  function inp(name, val, placeholder='') {
+    return `<input name="${name}" value="${val||''}" placeholder="${placeholder}">`;
+  }
+
+  modal.innerHTML = `
+    <div class="modal-header">
+      <h2>${isEdit ? `Edit ${item.id}` : 'Add item'}</h2>
+      <button class="modal-close" onclick="closeModalDirect()">×</button>
+    </div>
+    <div class="form-body">
+      <div class="form-row">
+        <div class="form-group">
+          <label>Category</label>
+          ${sel('category', cats, item?.category)}
+        </div>
+        <div class="form-group">
+          <label>Subcategory</label>
+          ${inp('subcategory', item?.subcategory, 'e.g. chinos')}
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Colors</label>
+          ${inp('colors', item?.colors, 'e.g. navy|white')}
+        </div>
+        <div class="form-group">
+          <label>Pattern</label>
+          ${sel('pattern', patterns, item?.pattern)}
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Formality (1–5)</label>
+          <select name="formality">
+            <option value="">—</option>
+            ${[1,2,3,4,5].map(n=>`<option value="${n}" ${item?.formality==n?'selected':''}>${n} — ${FORMALITY_LABELS[n]}</option>`).join('')}
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Fit</label>
+          ${sel('fit', fits, item?.fit)}
+        </div>
+      </div>
+      <div class="form-group full">
+        <label>Weather (pipe-separated)</label>
+        ${inp('weather', item?.weather, 'e.g. mild|cool')}
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>Brand</label>
+          ${inp('brand', item?.brand)}
+        </div>
+        <div class="form-group">
+          <label>Size</label>
+          ${inp('size_tag', item?.size_tag, 'e.g. M, 32x32')}
+        </div>
+      </div>
+      <div class="form-group full">
+        <label>Notes</label>
+        <textarea name="notes">${item?.notes||''}</textarea>
+      </div>
+      <div class="form-group full">
+        <label>Pairs well with</label>
+        ${inp('pairs_well_with', item?.pairs_well_with, 'e.g. W001|W002')}
+      </div>
+      <div class="form-group full">
+        <label>Photo</label>
+        <input type="file" accept="image/*" onchange="previewImg(this)">
+        ${item?.image_src ? `<img class="img-upload-preview" id="img-preview" src="${item.image_src}" style="display:block">` : '<img class="img-upload-preview" id="img-preview">'}
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeModalDirect()">Cancel</button>
+      <button class="btn btn-primary" onclick="saveItem('${item?.id||''}')">Save</button>
+    </div>
+  `;
+  isDetailOpen = false;
+  document.getElementById('overlay').classList.add('open');
+  updateNavArrows();
+}
+
+function previewImg(input) {
+  const preview = document.getElementById('img-preview');
+  if (input.files && input.files[0]) {
+    preview.src = URL.createObjectURL(input.files[0]);
+    preview.style.display = 'block';
+  }
+}
+
+async function saveItem(id) {
+  const modal = document.getElementById('modal');
+  const form = new FormData();
+
+  modal.querySelectorAll('input[name], select[name], textarea[name]').forEach(el => {
+    if (el.name && el.type !== 'file') form.append(el.name, el.value);
+  });
+
+  const fileInput = modal.querySelector('input[type=file]');
+  if (fileInput && fileInput.files[0]) form.append('image', fileInput.files[0]);
+
+  const url = id ? `/api/items/${id}` : '/api/items';
+  const method = id ? 'PUT' : 'POST';
+  const res = await fetch(url, { method, body: form });
+
+  if (res.ok) {
+    allItems = await fetch('/api/items').then(r => r.json());
+    applyFilters();
+    closeModalDirect();
+  } else {
+    alert('Save failed');
+  }
+}
+
+async function deleteItem(id) {
+  if (!confirm(`Delete ${id}?`)) return;
+  await fetch(`/api/items/${id}`, { method: 'DELETE' });
+  allItems = allItems.filter(i => i.id !== id);
+  applyFilters();
+  closeModalDirect();
+}
+
+function closeModal(e) {
+  if (e.target === document.getElementById('overlay')) closeModalDirect();
+}
+function closeModalDirect() {
+  isDetailOpen = false;
+  document.getElementById('overlay').classList.remove('open');
+  updateNavArrows();
+}
+
+function openLightbox(src) {
+  document.getElementById('lightbox-img').src = src;
+  document.getElementById('lightbox').classList.add('open');
+}
+function closeLightbox() {
+  document.getElementById('lightbox').classList.remove('open');
+}
+
+// ── Shelf functions ─────────────────────────────────────────────────────────
+
+function renderShelf() {
+  const active = allItems.filter(i => (i.status || 'active') === 'active');
+  const home   = allItems.filter(i => i.status === 'home');
+
+  document.getElementById('shelf-active-count').textContent = `${active.length} items`;
+  document.getElementById('shelf-home-count').textContent   = `${home.length} items`;
+
+  document.getElementById('shelf-active-grid').innerHTML = active.map(shelfCard).join('');
+  document.getElementById('shelf-home-grid').innerHTML   = home.map(shelfCard).join('');
+}
+
+function shelfCard(item) {
+  const img = item.image_src
+    ? `<img src="${item.image_src}" loading="lazy" draggable="false">`
+    : `<div class="shelf-item-placeholder">👕</div>`;
+  return `
+    <div class="shelf-item" draggable="true" data-id="${item.id}"
+         ondragstart="shelfDragStart(event,'${item.id}')"
+         ondragend="shelfDragEnd(event)">
+      ${img}
+      <div class="shelf-item-label">${item.subcategory || item.category || item.id}</div>
+    </div>`;
+}
+
+let draggingId = null;
+
+function shelfDragStart(e, id) {
+  draggingId = id;
+  e.dataTransfer.effectAllowed = 'move';
+  e.target.classList.add('dragging');
+}
+
+function shelfDragEnd(e) {
+  e.target.classList.remove('dragging');
+  draggingId = null;
+}
+
+function shelfDragOver(e, shelf) {
+  e.preventDefault();
+  e.dataTransfer.dropEffect = 'move';
+  document.getElementById(`shelf-${shelf}-grid`).classList.add('drag-over');
+}
+
+function shelfDragLeave(e, shelf) {
+  // Only remove highlight when leaving the shelf element itself
+  if (!e.currentTarget.contains(e.relatedTarget)) {
+    document.getElementById(`shelf-${shelf}-grid`).classList.remove('drag-over');
+  }
+}
+
+async function shelfDrop(e, targetStatus) {
+  e.preventDefault();
+  document.getElementById(`shelf-${targetStatus}-grid`).classList.remove('drag-over');
+  if (!draggingId) return;
+
+  const item = allItems.find(i => i.id === draggingId);
+  if (!item || (item.status || 'active') === targetStatus) return;
+
+  // Optimistic update
+  item.status = targetStatus;
+  renderShelf();
+  if (currentView === 'wardrobe') applyFilters();
+
+  await fetch(`/api/items/${draggingId}/status`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ status: targetStatus })
+  });
+}
+
+// ── End shelf functions ──────────────────────────────────────────────────────
+
+// ── Outfit functions ────────────────────────────────────────────────────────
+
+function setView(view) {
+  currentView = view;
+  localStorage.setItem('wardrobeView', view);
+  document.querySelectorAll('.view-toggle button').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.view === view);
+  });
+  // Bottom nav active state
+  document.querySelectorAll('.bottom-nav-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.view === view);
+  });
+
+  document.getElementById('grid').style.display              = view === 'wardrobe' ? '' : 'none';
+  document.querySelector('.filters').style.display           = view === 'wardrobe' ? '' : 'none';
+  document.getElementById('drag-hint').style.display         = view === 'wardrobe' ? '' : 'none';
+  document.getElementById('outfit-grid-wrap').style.display  = view === 'outfits'  ? '' : 'none';
+  document.getElementById('shelf-wrap').style.display        = view === 'shelf'    ? '' : 'none';
+  document.getElementById('style-guide-wrap').style.display  = view === 'style'    ? '' : 'none';
+  document.getElementById('fit-check-view').style.display    = view === 'fitcheck' ? '' : 'none';
+
+  if (view === 'wardrobe') {
+    document.getElementById('count').textContent = `${currentFilteredItems.length} items`;
+  } else if (view === 'outfits') {
+    document.getElementById('count').textContent = `${allOutfits.length} outfit${allOutfits.length === 1 ? '' : 's'}`;
+    renderOutfits();
+  } else if (view === 'shelf') {
+    document.getElementById('count').textContent = '';
+    renderShelf();
+  } else if (view === 'style') {
+    document.getElementById('count').textContent = '';
+    renderStyleGuide();
+  } else if (view === 'fitcheck') {
+    document.getElementById('count').textContent = '';
+  }
+}
+
+function renderOutfits() {
+  const grid = document.getElementById('outfit-grid');
+  if (!allOutfits.length) {
+    grid.innerHTML = '<div class="empty"><h3>No outfits yet</h3><p>Click "+ New Outfit" to build your first</p></div>';
+    return;
+  }
+  // Ordered slots so the mosaic is always: top-left=top, top-right=bottom, bottom-left=shoes, bottom-right=outerwear
+  const SLOT_ORDER = ['top', 'bottom', 'shoes', 'outerwear'];
+  grid.innerHTML = allOutfits.map(outfit => {
+    // Build a slot map for ordered display
+    const slotMap = {};
+    outfit.items.forEach(it => { slotMap[it.slot] = it; });
+    // Always show all 4 slots in order, empty ones get a subtle placeholder
+    const photos = SLOT_ORDER.map(slot => {
+      const it = slotMap[slot];
+      if (it?.image_src) return `<img src="${it.image_src}" onerror="this.outerHTML='<div class=\\'photo-placeholder\\'></div>'">`;
+      return `<div class="photo-placeholder">${it ? '👕' : ''}</div>`;
+    }).join('');
+    const badge = outfit.activity
+      ? `<span class="outfit-activity-badge" style="background:${ACTIVITY_COLORS[outfit.activity]||'#1a1a1a'}">${outfit.activity}</span>`
+      : '';
+    const summary = SLOT_ORDER.map(s => slotMap[s]?.subcategory || slotMap[s]?.category).filter(Boolean).join(', ');
+    return `
+      <div class="outfit-card" onclick="openOutfitBuilder(${outfit.id})">
+        <div class="outfit-card-photos">${photos}</div>
+        <div class="outfit-card-body">
+          ${badge}
+          <div class="outfit-name">${outfit.name || 'Unnamed outfit'}</div>
+          <div class="outfit-items-summary">${summary || 'No items'}</div>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+function openOutfitBuilder(outfitId) {
+  outfitSlots = { top: null, bottom: null, shoes: null, outerwear: null };
+  activeSlot = null;
+  editingOutfitId = outfitId || null;
+
+  const title = document.getElementById('outfit-modal-title');
+  const deleteBtn = document.getElementById('outfit-delete-btn');
+  const nameInput = document.getElementById('outfit-name');
+  const activitySelect = document.getElementById('outfit-activity');
+
+  if (editingOutfitId) {
+    const outfit = allOutfits.find(o => o.id === editingOutfitId);
+    if (outfit) {
+      title.textContent = outfit.name || 'Edit Outfit';
+      nameInput.value = outfit.name || '';
+      activitySelect.value = outfit.activity || '';
+      deleteBtn.style.display = '';
+      outfit.items.forEach(it => {
+        if (it.slot in outfitSlots) {
+          outfitSlots[it.slot] = allItems.find(i => i.id === it.item_id) || {
+            id: it.item_id, subcategory: it.subcategory, category: it.category, image_src: it.image_src
+          };
+        }
+      });
+    }
+  } else {
+    title.textContent = 'New Outfit';
+    nameInput.value = '';
+    activitySelect.value = '';
+    deleteBtn.style.display = 'none';
+  }
+
+  renderAllSlots();
+  document.getElementById('picker-grid').innerHTML =
+    '<div style="grid-column:1/-1;padding:30px;color:#aaa;text-align:center;font-size:13px">Select a slot on the left to browse items</div>';
+  document.getElementById('picker-title').textContent = 'Select a slot →';
+  document.getElementById('picker-search').value = '';
+  document.getElementById('outfit-overlay').classList.add('open');
+}
+
+function closeOutfitOverlay(e) {
+  if (e && e.target !== document.getElementById('outfit-overlay')) return;
+  document.getElementById('outfit-overlay').classList.remove('open');
+}
+
+function renderAllSlots() {
+  ['top', 'bottom', 'shoes', 'outerwear'].forEach(renderSlot);
+}
+
+function renderSlot(slot) {
+  const el = document.getElementById(`slot-${slot}`);
+  const contentEl = document.getElementById(`slot-${slot}-content`);
+  const removeBtn = el.querySelector('.outfit-slot-remove');
+  const item = outfitSlots[slot];
+
+  el.classList.toggle('active', slot === activeSlot);
+  el.classList.toggle('filled', !!item);
+
+  if (item) {
+    contentEl.innerHTML = `
+      ${item.image_src
+        ? `<img class="outfit-slot-img" src="${item.image_src}">`
+        : `<div class="outfit-slot-img" style="display:flex;align-items:center;justify-content:center;font-size:18px;background:#f0f0f0">👕</div>`}
+      <div class="outfit-slot-name">${item.subcategory || item.category || item.id}</div>`;
+    removeBtn.style.display = '';
+  } else {
+    contentEl.innerHTML = `<span class="outfit-slot-empty">Click to pick</span>`;
+    removeBtn.style.display = 'none';
+  }
+}
+
+function selectSlot(slot) {
+  activeSlot = slot;
+  renderAllSlots();
+  document.getElementById('picker-title').textContent = `Pick ${SLOT_LABELS[slot]}`;
+  document.getElementById('picker-search').value = '';
+  renderPickerGrid();
+}
+
+function removeFromSlot(e, slot) {
+  e.stopPropagation();
+  outfitSlots[slot] = null;
+  renderSlot(slot);
+}
+
+function renderPickerGrid() {
+  if (!activeSlot) return;
+  const search = document.getElementById('picker-search').value.toLowerCase();
+  const category = SLOT_CATEGORIES[activeSlot];
+  let items = allItems.filter(i => i.category === category && (i.status || 'active') === 'active');
+  if (search) {
+    items = items.filter(i =>
+      [i.subcategory, i.colors, i.brand, i.id].join(' ').toLowerCase().includes(search)
+    );
+  }
+  const grid = document.getElementById('picker-grid');
+  if (!items.length) {
+    grid.innerHTML = `<div style="grid-column:1/-1;padding:20px;color:#aaa;text-align:center;font-size:13px">No ${category} items found</div>`;
+    return;
+  }
+  const selectedId = outfitSlots[activeSlot]?.id;
+  grid.innerHTML = items.map(item => `
+    <div class="outfit-picker-item ${item.id === selectedId ? 'selected' : ''}" onclick="pickItem('${item.id}')">
+      ${item.image_src
+        ? `<img src="${item.image_src}" loading="lazy" onerror="this.style.display='none'">`
+        : `<div style="aspect-ratio:3/4;background:#eee;display:flex;align-items:center;justify-content:center;font-size:20px">👕</div>`}
+      <div class="outfit-picker-item-label" title="${item.subcategory||item.id}">${item.subcategory || item.id}</div>
+    </div>`).join('');
+}
+
+function pickItem(itemId) {
+  if (!activeSlot) return;
+  const item = allItems.find(i => i.id === itemId);
+  if (!item) return;
+  outfitSlots[activeSlot] = item;
+  renderSlot(activeSlot);
+  renderPickerGrid();
+}
+
+async function saveOutfit() {
+  const name = document.getElementById('outfit-name').value.trim();
+  const activity = document.getElementById('outfit-activity').value;
+  const items = Object.entries(outfitSlots)
+    .filter(([, item]) => item)
+    .map(([slot, item]) => ({ item_id: item.id, slot }));
+
+  const url = editingOutfitId ? `/api/outfits/${editingOutfitId}` : '/api/outfits';
+  const method = editingOutfitId ? 'PUT' : 'POST';
+  const res = await fetch(url, {
+    method,
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name, activity, notes: '', items })
+  });
+
+  if (res.ok) {
+    allOutfits = await fetch('/api/outfits').then(r => r.json());
+    renderOutfits();
+    document.getElementById('outfit-overlay').classList.remove('open');
+  } else {
+    alert('Failed to save outfit');
+  }
+}
+
+async function deleteOutfit() {
+  if (!editingOutfitId || !confirm('Delete this outfit?')) return;
+  await fetch(`/api/outfits/${editingOutfitId}`, { method: 'DELETE' });
+  allOutfits = allOutfits.filter(o => o.id !== editingOutfitId);
+  renderOutfits();
+  document.getElementById('outfit-overlay').classList.remove('open');
+}
+
+// ── End outfit functions ─────────────────────────────────────────────────────
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') {
+    if (document.getElementById('lightbox').classList.contains('open')) { closeLightbox(); return; }
+    if (document.getElementById('outfit-overlay').classList.contains('open')) {
+      document.getElementById('outfit-overlay').classList.remove('open'); return;
+    }
+    closeModalDirect();
+    return;
+  }
+  if (!isDetailOpen) return;
+  if (e.key === 'ArrowRight') { e.preventDefault(); navigateDetail(1); }
+  if (e.key === 'ArrowLeft')  { e.preventDefault(); navigateDetail(-1); }
+});
+
+init().then(() => {
+  const saved = localStorage.getItem('wardrobeView');
+  if (saved && ['wardrobe','outfits','shelf','style','fitcheck'].includes(saved)) setView(saved);
+
+  // Restore shelf zoom
+  const savedZoom = localStorage.getItem('shelfZoom');
+  if (savedZoom) {
+    document.documentElement.style.setProperty('--shelf-item-size', savedZoom + 'px');
+    const slider = document.getElementById('shelf-zoom');
+    if (slider) slider.value = savedZoom;
+  }
+});
+
+// ── Shelf zoom ───────────────────────────────────────────────────────────────
+
+function setShelfZoom(px) {
+  document.documentElement.style.setProperty('--shelf-item-size', px + 'px');
+  localStorage.setItem('shelfZoom', px);
+}
+
+// ── Style Guide ───────────────────────────────────────────────────────────────
+
+let styleGuideLoaded = false;
+
+async function renderStyleGuide() {
+  if (styleGuideLoaded) return;
+  styleGuideLoaded = true;
+
+  const data = await fetch('/api/style-gaps').then(r => r.json());
+
+  // Purchase list
+  const TIER_LABEL = { 1: 'Tier 1 — Buy Soon', 2: 'Tier 2 — Meaningful Gap', 3: 'Tier 3 — Nice to Have' };
+  window._purchaseData = data.purchase;
+
+  function renderOptions(options) {
+    return options.map(opt => `
+      <a class="sg-purchase-option" href="${opt.url}" target="_blank" rel="noopener noreferrer">
+        <span class="sg-purchase-option-brand">${opt.brand}</span>
+        <span class="sg-purchase-option-name">${opt.name}</span>
+        <span class="sg-purchase-option-price">${opt.price}</span>
+      </a>
+    `).join('');
+  }
+
+  document.getElementById('sg-purchase-list').innerHTML = data.purchase.map((item, idx) => `
+    <div class="sg-purchase-card" id="pc-${idx}">
+      <div class="sg-purchase-header">
+        <span class="sg-tier-badge sg-tier-${item.tier}">${TIER_LABEL[item.tier]}</span>
+        <span class="sg-purchase-name">${item.name}</span>
+        <button class="sg-refresh-btn" onclick="toggleRefreshPanel(${idx})">↻ Refresh</button>
+      </div>
+      <div class="sg-purchase-why">${item.why}</div>
+      <div class="sg-refresh-panel" id="rp-${idx}">
+        <span class="sg-refresh-panel-label">Notes for this search</span>
+        <textarea class="sg-refresh-notes" id="rn-${idx}" placeholder="e.g. only tan or brown, avoid white, no final sale"></textarea>
+        <button class="sg-refresh-submit" id="rs-${idx}" onclick="runRefresh(${idx})">Find current options</button>
+      </div>
+      <div class="sg-purchase-options" id="po-${idx}">
+        ${renderOptions(item.options)}
+      </div>
+    </div>
+  `).join('');
+
+  window.toggleRefreshPanel = function(idx) {
+    const panel = document.getElementById(`rp-${idx}`);
+    panel.style.display = panel.style.display === 'flex' ? 'none' : 'flex';
+    if (panel.style.display === 'flex') document.getElementById(`rn-${idx}`).focus();
+  };
+
+  window.runRefresh = async function(idx) {
+    const item = window._purchaseData[idx];
+    const notes = document.getElementById(`rn-${idx}`).value;
+    const optionsEl = document.getElementById(`po-${idx}`);
+    const submitBtn = document.getElementById(`rs-${idx}`);
+
+    submitBtn.disabled = true;
+    optionsEl.innerHTML = '<div class="sg-refresh-loading">Searching for current options — this takes 20–40 seconds…</div>';
+
+    try {
+      const res = await fetch('/api/refresh-section', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          section_name: item.name,
+          section_why: item.why,
+          tier: item.tier,
+          notes: notes,
+          current_options: item.options,
+          brands: item.brands || {},
+        }),
+      });
+      const data = await res.json();
+      if (data.options && data.options.length) {
+        window._purchaseData[idx].options = data.options;
+        optionsEl.innerHTML = renderOptions(data.options);
+        document.getElementById(`rp-${idx}`).style.display = 'none';
+      } else {
+        optionsEl.innerHTML = `<div class="sg-refresh-error">Refresh failed: ${data.error || 'unknown error'}</div>${renderOptions(item.options)}`;
+      }
+    } catch (err) {
+      optionsEl.innerHTML = `<div class="sg-refresh-error">Error: ${err.message}</div>${renderOptions(item.options)}`;
+    } finally {
+      submitBtn.disabled = false;
+    }
+  };
+
+  // Cull grids
+  function renderCullGrid(items, badgeClass, badgeLabel, containerId) {
+    const el = document.getElementById(containerId);
+    if (!items.length) {
+      el.innerHTML = '<p style="color:#bbb;font-size:13px;padding:4px 0">None identified</p>';
+      return;
+    }
+    el.innerHTML = items.map(item => `
+      <div class="sg-cull-card" onclick="goToItem('${item.id}')" title="Open in Wardrobe">
+        <div class="sg-cull-img-wrap">
+          ${item.image_src
+            ? `<img src="${item.image_src}" onerror="this.style.display='none'">`
+            : `<div class="sg-cull-placeholder">👕</div>`}
+          <span class="sg-cull-badge ${badgeClass}">${badgeLabel}</span>
+        </div>
+        <div class="sg-cull-info">
+          <div class="sg-cull-id">${item.id}</div>
+          <div class="sg-cull-sub">${item.subcategory}</div>
+          <div class="sg-cull-reason">${item.reason}</div>
+        </div>
+      </div>
+    `).join('');
+  }
+
+  renderCullGrid(data.cull_toss, 'sg-badge-toss', 'TOSS', 'sg-cull-toss');
+}
+
+function goToItem(itemId) {
+  setView('wardrobe');
+  // Small delay to let the wardrobe grid render, then open the detail
+  setTimeout(() => openDetail(itemId), 50);
+}
+
+// ── Quick Add ───────────────────────────────────────────────────────────────
+
+function openQuickAdd() {
+  document.getElementById('quick-add-wrap').classList.add('open');
+  // Populate subcategory datalist
+  const dl = document.getElementById('subcat-dl-qa');
+  if (!dl.childElementCount) {
+    dl.innerHTML = SUBCATS.map(s => `<option value="${s}">`).join('');
+  }
+  // Reset
+  document.getElementById('quick-add-file').value = '';
+  document.getElementById('quick-add-preview').style.display = 'none';
+  document.getElementById('quick-add-capture').classList.remove('has-image');
+  document.getElementById('quick-add-category').value = '';
+  document.getElementById('quick-add-subcategory').value = '';
+}
+
+function closeQuickAdd() {
+  document.getElementById('quick-add-wrap').classList.remove('open');
+}
+
+function previewQuickAdd(input) {
+  if (input.files && input.files[0]) {
+    const preview = document.getElementById('quick-add-preview');
+    preview.src = URL.createObjectURL(input.files[0]);
+    preview.style.display = 'block';
+    document.getElementById('quick-add-capture').classList.add('has-image');
+  }
+}
+
+async function submitQuickAdd() {
+  const fileInput = document.getElementById('quick-add-file');
+  const category = document.getElementById('quick-add-category').value;
+  const subcategory = document.getElementById('quick-add-subcategory').value;
+
+  if (!fileInput.files[0] && !category) {
+    alert('Please take a photo or select a category');
+    return;
+  }
+
+  const btn = document.getElementById('quick-add-submit');
+  btn.disabled = true;
+  btn.textContent = 'Adding…';
+
+  const form = new FormData();
+  if (category) form.append('category', category);
+  if (subcategory) form.append('subcategory', subcategory);
+  if (fileInput.files[0]) form.append('image', fileInput.files[0]);
+
+  try {
+    const res = await fetch('/api/items', { method: 'POST', body: form });
+    if (res.ok) {
+      const newItem = await res.json();
+      allItems = await fetch('/api/items').then(r => r.json());
+      applyFilters();
+      closeQuickAdd();
+      // Open the new item for editing details
+      setTimeout(() => openDetail(newItem.id), 100);
+    } else {
+      alert('Failed to add item');
+    }
+  } catch (err) {
+    alert('Error: ' + err.message);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Add to Wardrobe';
+  }
+}
+
+// ── Fit Check ───────────────────────────────────────────────────────────────
+
+function previewFitCheck(input) {
+  if (input.files && input.files[0]) {
+    const preview = document.getElementById('fit-check-preview');
+    preview.src = URL.createObjectURL(input.files[0]);
+    preview.style.display = 'block';
+    document.getElementById('fit-check-capture').classList.add('has-image');
+    document.getElementById('fit-check-submit').disabled = false;
+  }
+}
+
+async function runFitCheck() {
+  const fileInput = document.getElementById('fit-check-file');
+  const context = document.getElementById('fit-check-context').value;
+  const resultEl = document.getElementById('fit-check-result');
+  const btn = document.getElementById('fit-check-submit');
+
+  if (!fileInput.files[0]) return;
+
+  btn.disabled = true;
+  btn.textContent = 'Analyzing your wardrobe…';
+  resultEl.innerHTML = '<div class="sg-refresh-loading" style="padding:20px 0">Analyzing this piece against your wardrobe — 15–30 seconds…</div>';
+
+  const form = new FormData();
+  form.append('image', fileInput.files[0]);
+  if (context) form.append('context', context);
+
+  try {
+    const res = await fetch('/api/fit-check', { method: 'POST', body: form });
+    const data = await res.json();
+
+    if (data.error) {
+      resultEl.innerHTML = `<div class="fit-check-result"><div class="sg-refresh-error">${data.error}</div></div>`;
+      return;
+    }
+
+    const scoreClass = data.score >= 7 ? 'high' : data.score >= 4 ? 'mid' : 'low';
+
+    // Find matching wardrobe items for pairs_with
+    const pairsHtml = (data.pairs_with || []).map(id => {
+      const item = allItems.find(i => i.id === id);
+      if (!item) return '';
+      return `<div class="fit-pair-item" onclick="goToItem('${id}')" style="cursor:pointer" title="${item.subcategory||item.id}">
+        ${item.image_src ? `<img src="${item.image_src}">` : `<div style="aspect-ratio:3/4;background:#f5f5f5;display:flex;align-items:center;justify-content:center">👕</div>`}
+        <div class="fit-pair-label">${item.subcategory||item.id}</div>
+      </div>`;
+    }).join('');
+
+    const gapsHtml = (data.gaps_filled || []).length
+      ? `<div class="fit-section-label">Gaps filled</div><div class="fit-gaps">✓ ${data.gaps_filled.join('<br>✓ ')}</div>`
+      : '';
+
+    const concernsHtml = (data.concerns || []).length
+      ? `<div class="fit-section-label">Concerns</div><div class="fit-concerns">⚠ ${data.concerns.join('<br>⚠ ')}</div>`
+      : '';
+
+    resultEl.innerHTML = `
+      <div class="fit-check-result">
+        <div class="fit-score">
+          <div class="fit-score-num ${scoreClass}">${data.score}/10</div>
+          <div class="fit-verdict">${data.verdict || ''}</div>
+        </div>
+        <div class="fit-reasoning">${data.reasoning || ''}</div>
+        ${gapsHtml}
+        ${pairsHtml ? `<div class="fit-section-label">Pairs with</div><div class="fit-pairs">${pairsHtml}</div>` : ''}
+        ${concernsHtml}
+        ${data.score >= 6 ? `<button class="quick-add-submit" style="margin-top:12px" onclick="quickAddFromFitCheck('${data.suggested_category||''}','${data.suggested_subcategory||''}')">+ Add to Wardrobe</button>` : ''}
+      </div>`;
+  } catch (err) {
+    resultEl.innerHTML = `<div class="fit-check-result"><div class="sg-refresh-error">Error: ${err.message}</div></div>`;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Check Fit';
+  }
+}
+
+function quickAddFromFitCheck(category, subcategory) {
+  const fileInput = document.getElementById('fit-check-file');
+  openQuickAdd();
+  // Pre-fill from fit check
+  if (category) document.getElementById('quick-add-category').value = category;
+  if (subcategory) document.getElementById('quick-add-subcategory').value = subcategory;
+  // Copy the photo over
+  if (fileInput.files[0]) {
+    const dt = new DataTransfer();
+    dt.items.add(fileInput.files[0]);
+    document.getElementById('quick-add-file').files = dt.files;
+    const preview = document.getElementById('quick-add-preview');
+    preview.src = URL.createObjectURL(fileInput.files[0]);
+    preview.style.display = 'block';
+    document.getElementById('quick-add-capture').classList.add('has-image');
+  }
+}
+
+// ── Swipe navigation on detail modal ────────────────────────────────────────
+
+(function() {
+  let touchStartX = 0, touchStartY = 0, touchStartTime = 0;
+  const modal = document.getElementById('modal');
+
+  modal.addEventListener('touchstart', e => {
+    touchStartX = e.touches[0].clientX;
+    touchStartY = e.touches[0].clientY;
+    touchStartTime = Date.now();
+  }, { passive: true });
+
+  modal.addEventListener('touchend', e => {
+    const dx = e.changedTouches[0].clientX - touchStartX;
+    const dy = e.changedTouches[0].clientY - touchStartY;
+    const dt = Date.now() - touchStartTime;
+    // Require: horizontal > 60px, mostly horizontal, within 500ms
+    if (Math.abs(dx) > 60 && Math.abs(dx) > Math.abs(dy) * 1.5 && dt < 500) {
+      if (isDetailOpen) {
+        if (dx > 0) navigateDetail(-1);
+        else navigateDetail(1);
+      }
+    }
+  }, { passive: true });
+})();
+</script>
+</body>
+</html>

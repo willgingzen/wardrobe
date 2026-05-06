@@ -1,0 +1,6 @@
+.env.local
+wardrobe.db
+images/
+__pycache__/
+*.pyc
+.claude/
