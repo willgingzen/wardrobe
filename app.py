@@ -140,7 +140,8 @@ def item_to_dict(row) -> dict:
     # Prefer local image, fall back to Drive thumbnail
     local = IMAGES_DIR / f"{item_id}.jpg"
     if local.exists():
-        d["image_src"] = f"/images/{item_id}.jpg"
+        mtime = int(local.stat().st_mtime)
+        d["image_src"] = f"/images/{item_id}.jpg?v={mtime}"
     elif d.get("image_url"):
         d["image_src"] = drive_url_to_thumbnail(d["image_url"])
     else:
