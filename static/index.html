@@ -326,6 +326,11 @@
     color: #991b1b;
     border: 1px solid #fecaca;
   }
+  .outfit-warning.duplicate {
+    background: #ede9fe;
+    color: #5b21b6;
+    border: 1px solid #ddd6fe;
+  }
   .outfit-slot.weather-conflict {
     border-color: #f59e0b;
     background: #fffbeb;
@@ -2745,14 +2750,25 @@ function checkOutfitCompatibility() {
     }
   }
 
+  // Duplicate check
+  const currentItems = Object.entries(outfitSlots)
+    .filter(([, item]) => item)
+    .map(([slot, item]) => ({ item_id: item.id, slot }));
+  const dupe = findDuplicateOutfit(currentItems);
+  if (dupe) {
+    const dupeName = dupe.name || `Outfit #${dupe.id}`;
+    warnings.unshift({ type: 'duplicate', text: `Same items as "${dupeName}"` });
+  }
+
   renderOutfitWarnings(warnings, conflictSlots);
 }
 
 function renderOutfitWarnings(warnings, conflictSlots) {
   const el = document.getElementById('outfit-warnings');
+  const icons = { weather: '🌡', formality: '👔', duplicate: '⚠️' };
   el.innerHTML = warnings.map(w => `
     <div class="outfit-warning ${w.type}">
-      <span class="outfit-warning-icon">${w.type === 'weather' ? '🌡' : '👔'}</span>
+      <span class="outfit-warning-icon">${icons[w.type] || '⚠️'}</span>
       <span>${w.text}</span>
     </div>
   `).join('');
@@ -2765,12 +2781,39 @@ function renderOutfitWarnings(warnings, conflictSlots) {
   });
 }
 
+function findDuplicateOutfit(items) {
+  // Build a set of "slot:item_id" for the current outfit
+  const currentSet = new Set(items.map(i => `${i.slot}:${i.item_id}`));
+  if (currentSet.size === 0) return null;
+
+  for (const outfit of allOutfits) {
+    // Skip the outfit we're currently editing
+    if (editingOutfitId && outfit.id === editingOutfitId) continue;
+    // Build the same set for this existing outfit
+    const existingSet = new Set(outfit.items.map(i => `${i.slot}:${i.item_id}`));
+    // Check if sets are identical
+    if (currentSet.size === existingSet.size && [...currentSet].every(x => existingSet.has(x))) {
+      return outfit;
+    }
+  }
+  return null;
+}
+
 async function saveOutfit() {
   const name = document.getElementById('outfit-name').value.trim();
   const activity = document.getElementById('outfit-activity').value;
   const items = Object.entries(outfitSlots)
     .filter(([, item]) => item)
     .map(([slot, item]) => ({ item_id: item.id, slot }));
+
+  // Check for duplicate
+  const dupe = findDuplicateOutfit(items);
+  if (dupe) {
+    const dupeName = dupe.name || `Outfit #${dupe.id}`;
+    if (!confirm(`This is the same combination as "${dupeName}". Save anyway?`)) {
+      return;
+    }
+  }
 
   const url = editingOutfitId ? `/api/outfits/${editingOutfitId}` : '/api/outfits';
   const method = editingOutfitId ? 'PUT' : 'POST';
