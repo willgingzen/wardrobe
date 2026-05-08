@@ -94,9 +94,9 @@
   .outfit-modal {
     background: #fff;
     border-radius: 16px;
-    width: 960px;
+    width: 1100px;
     max-width: 95vw;
-    max-height: 90vh;
+    max-height: 92vh;
     overflow: hidden;
     display: flex;
     flex-direction: column;
@@ -115,14 +115,14 @@
     overflow: hidden;
   }
   .outfit-slots {
-    width: 300px;
+    width: 380px;
     flex-shrink: 0;
     border-right: 1px solid #eee;
     overflow-y: auto;
-    padding: 12px;
+    padding: 16px;
     display: grid;
     grid-template-columns: 1fr 1fr;
-    gap: 10px;
+    gap: 12px;
     align-content: start;
   }
   .outfit-slot {
@@ -137,21 +137,21 @@
   .outfit-slot.active { border-color: #1a1a1a; border-style: solid; }
   .outfit-slot.filled { border-style: solid; border-color: #ccc; }
   .outfit-slot-label {
-    font-size: 9px;
+    font-size: 10px;
     font-weight: 700;
     letter-spacing: 0.06em;
     text-transform: uppercase;
     color: #999;
-    padding: 6px 8px 0;
+    padding: 8px 10px 0;
   }
   .outfit-slot-content {
     display: flex;
     flex-direction: column;
     align-items: center;
     gap: 4px;
-    min-height: 80px;
+    min-height: 100px;
     justify-content: center;
-    padding: 4px 6px 6px;
+    padding: 6px 8px 8px;
   }
   .outfit-slot-img {
     width: 100%;
@@ -161,8 +161,8 @@
     background: #f8f7f5;
     display: block;
   }
-  .outfit-slot-name { font-size: 11px; color: #444; line-height: 1.2; text-align: center; }
-  .outfit-slot-empty { font-size: 11px; color: #bbb; padding: 20px 0; }
+  .outfit-slot-name { font-size: 12px; color: #444; line-height: 1.2; text-align: center; }
+  .outfit-slot-empty { font-size: 12px; color: #bbb; padding: 24px 0; }
   .outfit-slot-remove {
     position: absolute;
     top: 4px; right: 4px;
@@ -204,9 +204,9 @@
   }
   .outfit-picker-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
-    gap: 10px;
-    padding: 12px;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 14px;
+    padding: 16px;
     overflow-y: auto;
     flex: 1;
   }
@@ -222,13 +222,14 @@
   .outfit-picker-item.selected { border-color: #1a1a1a; }
   .outfit-picker-item img {
     width: 100%;
-    aspect-ratio: 3/4;
-    object-fit: cover;
+    aspect-ratio: 4/5;
+    object-fit: contain;
+    background: #f8f7f5;
     display: block;
   }
   .outfit-picker-item-label {
-    font-size: 10px;
-    padding: 4px 5px;
+    font-size: 12px;
+    padding: 6px 8px;
     color: #555;
     white-space: nowrap;
     overflow: hidden;
