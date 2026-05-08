@@ -29,6 +29,32 @@
   header h1 { font-size: 18px; font-weight: 600; letter-spacing: 0.05em; }
   .count { font-size: 13px; color: #888; text-align: right; }
 
+  /* Weather bar */
+  .weather-bar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 24px;
+    background: linear-gradient(135deg, #e8f0fe, #f0f4ff);
+    border-bottom: 1px solid #dde4f0;
+    font-size: 13px;
+    color: #333;
+  }
+  .weather-icon { font-size: 20px; }
+  .weather-temp { font-weight: 700; font-size: 15px; }
+  .weather-desc { color: #666; }
+  .weather-category {
+    margin-left: auto;
+    background: #1a1a1a;
+    color: #fff;
+    padding: 2px 10px;
+    border-radius: 10px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
   /* Outfits grid */
   .outfit-grid {
     display: grid;
@@ -1284,6 +1310,8 @@
   <span class="count" id="count"></span>
 </header>
 
+<div id="weather-bar" class="weather-bar" style="display:none"></div>
+
 <div class="filters">
   <input type="search" id="search" placeholder="Search..." oninput="applyFilters()">
   <select id="filter-category" onchange="applyFilters()">
@@ -1546,6 +1574,7 @@ let activeSlot = null;
 let outfitSlots = { top: null, bottom: null, shoes: null, outerwear: null };
 let editingOutfitId = null;
 let itemWearCounts = null; // cached from /api/item-wear-counts
+let currentWeather = null; // { temp, feelsLike, category, description, icon }
 
 const SLOT_CATEGORIES = { top: 'top', bottom: 'bottom', shoes: 'shoes', outerwear: 'outerwear' };
 const SLOT_LABELS = { top: 'Top', bottom: 'Bottom', shoes: 'Shoes', outerwear: 'Outerwear' };
@@ -1556,6 +1585,70 @@ const ACTIVITY_COLORS = {
 
 const FORMALITY_LABELS = {1:'Casual',2:'Smart casual',3:'Business casual',4:'Business',5:'Formal'};
 
+// ── Weather ─────────────────────────────────────────────────────────────────
+
+const WEATHER_CODES = {
+  0: 'Clear', 1: 'Mostly clear', 2: 'Partly cloudy', 3: 'Overcast',
+  45: 'Foggy', 48: 'Icy fog', 51: 'Light drizzle', 53: 'Drizzle', 55: 'Heavy drizzle',
+  61: 'Light rain', 63: 'Rain', 65: 'Heavy rain', 71: 'Light snow', 73: 'Snow',
+  75: 'Heavy snow', 80: 'Light showers', 81: 'Showers', 82: 'Heavy showers',
+  95: 'Thunderstorm', 96: 'Hail', 99: 'Heavy hail'
+};
+const WEATHER_ICONS = {
+  0: '☀️', 1: '🌤️', 2: '⛅', 3: '☁️', 45: '🌫️', 48: '🌫️',
+  51: '🌦️', 53: '🌧️', 55: '🌧️', 61: '🌦️', 63: '🌧️', 65: '🌧️',
+  71: '🌨️', 73: '❄️', 75: '❄️', 80: '🌦️', 81: '🌧️', 82: '🌧️',
+  95: '⛈️', 96: '⛈️', 99: '⛈️'
+};
+
+function tempToCategory(tempF) {
+  if (tempF >= 85) return 'hot';
+  if (tempF >= 70) return 'warm';
+  if (tempF >= 55) return 'mild';
+  if (tempF >= 40) return 'cool';
+  return 'cold';
+}
+
+async function fetchWeather() {
+  try {
+    const pos = await new Promise((resolve, reject) => {
+      navigator.geolocation.getCurrentPosition(resolve, reject, {
+        timeout: 8000, maximumAge: 600000
+      });
+    });
+    const { latitude, longitude } = pos.coords;
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current=temperature_2m,apparent_temperature,weather_code&temperature_unit=fahrenheit&timezone=auto`;
+    const data = await fetch(url).then(r => r.json());
+    const c = data.current;
+    currentWeather = {
+      temp: Math.round(c.temperature_2m),
+      feelsLike: Math.round(c.apparent_temperature),
+      category: tempToCategory(c.apparent_temperature),
+      code: c.weather_code,
+      description: WEATHER_CODES[c.weather_code] || 'Unknown',
+      icon: WEATHER_ICONS[c.weather_code] || '🌡️'
+    };
+    renderWeatherBar();
+  } catch (e) {
+    console.log('Weather unavailable:', e.message);
+    // Silently degrade — weather bar stays hidden
+  }
+}
+
+function renderWeatherBar() {
+  const el = document.getElementById('weather-bar');
+  if (!currentWeather || !el) return;
+  const w = currentWeather;
+  const categoryLabel = w.category.charAt(0).toUpperCase() + w.category.slice(1);
+  el.innerHTML = `
+    <span class="weather-icon">${w.icon}</span>
+    <span class="weather-temp">${w.temp}°F</span>
+    <span class="weather-desc">${w.description}</span>
+    <span class="weather-category">${categoryLabel}</span>
+  `;
+  el.style.display = 'flex';
+}
+
 async function init() {
   [allItems, meta, allOutfits] = await Promise.all([
     fetch('/api/items').then(r => r.json()),
@@ -1564,6 +1657,7 @@ async function init() {
   ]);
   populateFilterOptions();
   renderGrid(allItems);
+  fetchWeather(); // non-blocking
 }
 
 function populateFilterOptions() {
@@ -2440,6 +2534,17 @@ async function renderPickerGrid() {
     items = items.map(item => ({ ...item, _score: scoreCandidate(item, otherSelected) }));
     items.sort((a, b) => b._score - a._score);
     modeHint = 'by compatibility';
+  } else if (currentWeather) {
+    // No other items selected but we know the weather — rank by weather match + wear frequency
+    const counts = await fetchItemWearCounts();
+    items = items.map(item => {
+      const weatherSet = new Set(parseWeather(item.weather));
+      const weatherBonus = weatherSet.has(currentWeather.category) ? 10 : 0;
+      const wearBonus = (counts[item.id]?.count || 0) * 0.5;
+      return { ...item, _score: weatherBonus + wearBonus };
+    });
+    items.sort((a, b) => b._score - a._score);
+    modeHint = `for ${currentWeather.temp}°F ${currentWeather.category}`;
   } else {
     const counts = await fetchItemWearCounts();
     items.sort((a, b) => {
