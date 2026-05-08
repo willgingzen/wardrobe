@@ -33,18 +33,24 @@
   .weather-bar {
     display: flex;
     align-items: center;
-    gap: 10px;
+    justify-content: space-between;
     padding: 8px 24px;
     background: linear-gradient(135deg, #e8f0fe, #f0f4ff);
     border-bottom: 1px solid #dde4f0;
     font-size: 13px;
     color: #333;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+  .weather-now {
+    display: flex;
+    align-items: center;
+    gap: 10px;
   }
   .weather-icon { font-size: 20px; }
   .weather-temp { font-weight: 700; font-size: 15px; }
   .weather-desc { color: #666; }
   .weather-category {
-    margin-left: auto;
     background: #1a1a1a;
     color: #fff;
     padding: 2px 10px;
@@ -54,6 +60,21 @@
     text-transform: uppercase;
     letter-spacing: 0.05em;
   }
+  .weather-forecast {
+    display: flex;
+    gap: 16px;
+    align-items: center;
+  }
+  .forecast-day {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 12px;
+    color: #555;
+  }
+  .forecast-label { font-weight: 600; color: #333; }
+  .forecast-icon { font-size: 14px; }
+  .forecast-range { color: #777; }
 
   /* Outfits grid */
   .outfit-grid {
@@ -1574,7 +1595,7 @@ let activeSlot = null;
 let outfitSlots = { top: null, bottom: null, shoes: null, outerwear: null };
 let editingOutfitId = null;
 let itemWearCounts = null; // cached from /api/item-wear-counts
-let currentWeather = null; // { temp, feelsLike, category, description, icon }
+let currentWeather = null; // { temp, feelsLike, category, description, icon, todayHigh, todayLow, todayCategory, forecast[] }
 
 const SLOT_CATEGORIES = { top: 'top', bottom: 'bottom', shoes: 'shoes', outerwear: 'outerwear' };
 const SLOT_LABELS = { top: 'Top', bottom: 'Bottom', shoes: 'Shoes', outerwear: 'Outerwear' };
@@ -1617,21 +1638,61 @@ async function fetchWeather() {
       });
     });
     const { latitude, longitude } = pos.coords;
-    const url = `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}&current=temperature_2m,apparent_temperature,weather_code&temperature_unit=fahrenheit&timezone=auto`;
+    const url = `https://api.open-meteo.com/v1/forecast?latitude=${latitude}&longitude=${longitude}` +
+      `&current=temperature_2m,apparent_temperature,weather_code` +
+      `&daily=temperature_2m_max,temperature_2m_min,apparent_temperature_max,apparent_temperature_min,weather_code` +
+      `&hourly=apparent_temperature` +
+      `&temperature_unit=fahrenheit&timezone=auto&forecast_days=5`;
     const data = await fetch(url).then(r => r.json());
     const c = data.current;
+
+    // Today's remaining hours — dress for the range ahead, not behind
+    const nowHour = new Date().getHours();
+    const todayStr = new Date().toISOString().slice(0, 10);
+    const remainingTemps = data.hourly.time
+      .map((t, i) => ({ time: t, temp: data.hourly.apparent_temperature[i] }))
+      .filter(h => h.time.startsWith(todayStr) && parseInt(h.time.slice(11, 13)) >= nowHour)
+      .map(h => h.temp);
+    const remainingHigh = remainingTemps.length ? Math.round(Math.max(...remainingTemps)) : Math.round(data.daily.apparent_temperature_max[0]);
+    const remainingLow = remainingTemps.length ? Math.round(Math.min(...remainingTemps)) : Math.round(data.daily.apparent_temperature_min[0]);
+
+    // Weather categories that span the rest of today
+    const todayCategories = new Set();
+    todayCategories.add(tempToCategory(remainingHigh));
+    todayCategories.add(tempToCategory(remainingLow));
+    // Also add the middle if range is wide
+    const midTemp = (remainingHigh + remainingLow) / 2;
+    todayCategories.add(tempToCategory(midTemp));
+
+    // Daily forecast for upcoming days
+    const forecast = data.daily.time.map((date, i) => ({
+      date,
+      dayName: i === 0 ? 'Today' : i === 1 ? 'Tomorrow' : new Date(date + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'short' }),
+      high: Math.round(data.daily.temperature_2m_max[i]),
+      low: Math.round(data.daily.temperature_2m_min[i]),
+      feelsHigh: Math.round(data.daily.apparent_temperature_max[i]),
+      feelsLow: Math.round(data.daily.apparent_temperature_min[i]),
+      category: tempToCategory(data.daily.apparent_temperature_max[i]),
+      code: data.daily.weather_code[i],
+      icon: WEATHER_ICONS[data.daily.weather_code[i]] || '🌡️',
+      description: WEATHER_CODES[data.daily.weather_code[i]] || ''
+    }));
+
     currentWeather = {
       temp: Math.round(c.temperature_2m),
       feelsLike: Math.round(c.apparent_temperature),
       category: tempToCategory(c.apparent_temperature),
       code: c.weather_code,
       description: WEATHER_CODES[c.weather_code] || 'Unknown',
-      icon: WEATHER_ICONS[c.weather_code] || '🌡️'
+      icon: WEATHER_ICONS[c.weather_code] || '🌡️',
+      remainingHigh,
+      remainingLow,
+      todayCategories: [...todayCategories],
+      forecast
     };
     renderWeatherBar();
   } catch (e) {
     console.log('Weather unavailable:', e.message);
-    // Silently degrade — weather bar stays hidden
   }
 }
 
@@ -1639,12 +1700,28 @@ function renderWeatherBar() {
   const el = document.getElementById('weather-bar');
   if (!currentWeather || !el) return;
   const w = currentWeather;
-  const categoryLabel = w.category.charAt(0).toUpperCase() + w.category.slice(1);
+  const rangeText = w.remainingLow !== w.remainingHigh
+    ? `${w.remainingLow}°–${w.remainingHigh}°F rest of day`
+    : `${w.remainingHigh}°F rest of day`;
+  const cats = w.todayCategories.join('/');
+
+  // Mini forecast for upcoming days
+  const forecastHtml = w.forecast.slice(1, 5).map(d => `
+    <div class="forecast-day">
+      <span class="forecast-label">${d.dayName}</span>
+      <span class="forecast-icon">${d.icon}</span>
+      <span class="forecast-range">${d.low}°–${d.high}°</span>
+    </div>
+  `).join('');
+
   el.innerHTML = `
-    <span class="weather-icon">${w.icon}</span>
-    <span class="weather-temp">${w.temp}°F</span>
-    <span class="weather-desc">${w.description}</span>
-    <span class="weather-category">${categoryLabel}</span>
+    <div class="weather-now">
+      <span class="weather-icon">${w.icon}</span>
+      <span class="weather-temp">${w.temp}°F</span>
+      <span class="weather-desc">${w.description} · ${rangeText}</span>
+      <span class="weather-category">${cats}</span>
+    </div>
+    <div class="weather-forecast">${forecastHtml}</div>
   `;
   el.style.display = 'flex';
 }
@@ -2536,15 +2613,20 @@ async function renderPickerGrid() {
     modeHint = 'by compatibility';
   } else if (currentWeather) {
     // No other items selected but we know the weather — rank by weather match + wear frequency
+    // Use todayCategories (rest-of-day range) so items cover the full temp swing
     const counts = await fetchItemWearCounts();
+    const todayCats = new Set(currentWeather.todayCategories || [currentWeather.category]);
     items = items.map(item => {
-      const weatherSet = new Set(parseWeather(item.weather));
-      const weatherBonus = weatherSet.has(currentWeather.category) ? 10 : 0;
+      const itemWeather = new Set(parseWeather(item.weather));
+      // Score: how many of today's weather categories does this item cover?
+      const overlap = [...todayCats].filter(c => itemWeather.has(c)).length;
+      const weatherBonus = overlap > 0 ? overlap * 5 : -5;
       const wearBonus = (counts[item.id]?.count || 0) * 0.5;
       return { ...item, _score: weatherBonus + wearBonus };
     });
     items.sort((a, b) => b._score - a._score);
-    modeHint = `for ${currentWeather.temp}°F ${currentWeather.category}`;
+    const cats = currentWeather.todayCategories.join('/');
+    modeHint = `for today's ${currentWeather.remainingLow}°–${currentWeather.remainingHigh}°F`;
   } else {
     const counts = await fetchItemWearCounts();
     items.sort((a, b) => {
