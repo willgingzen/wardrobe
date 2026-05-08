@@ -3,6 +3,7 @@ import re
 import csv
 import json
 import sqlite3
+from datetime import date
 from pathlib import Path
 from flask import Flask, jsonify, request, send_from_directory, g
 from dotenv import load_dotenv
@@ -97,6 +98,14 @@ def init_db():
             outfit_id   INTEGER,
             item_id     TEXT,
             slot        TEXT,
+            FOREIGN KEY (outfit_id) REFERENCES outfits(id) ON DELETE CASCADE
+        )
+    """)
+    db.execute("""
+        CREATE TABLE IF NOT EXISTS outfit_wears (
+            id          INTEGER PRIMARY KEY AUTOINCREMENT,
+            outfit_id   INTEGER NOT NULL,
+            worn_date   TEXT NOT NULL DEFAULT (date('now')),
             FOREIGN KEY (outfit_id) REFERENCES outfits(id) ON DELETE CASCADE
         )
     """)
@@ -327,6 +336,13 @@ def list_outfits():
                 drive_url_to_thumbnail(rd["image_url"]) if rd.get("image_url") else None
             )
             od["items"].append(rd)
+        # Wear tracking data
+        wear = db.execute(
+            "SELECT COUNT(*) as cnt, MAX(worn_date) as last "
+            "FROM outfit_wears WHERE outfit_id = ?", (o["id"],)
+        ).fetchone()
+        od["wear_count"] = wear["cnt"]
+        od["last_worn"] = wear["last"]
         result.append(od)
     return jsonify(result)
 
@@ -370,10 +386,51 @@ def update_outfit(outfit_id):
 @app.route("/api/outfits/<int:outfit_id>", methods=["DELETE"])
 def delete_outfit(outfit_id):
     db = get_db()
+    db.execute("DELETE FROM outfit_wears WHERE outfit_id=?", (outfit_id,))
     db.execute("DELETE FROM outfit_items WHERE outfit_id=?", (outfit_id,))
     db.execute("DELETE FROM outfits WHERE id=?", (outfit_id,))
     db.commit()
     return jsonify({"deleted": outfit_id})
+
+
+@app.route("/api/outfits/<int:outfit_id>/wear", methods=["POST"])
+def log_outfit_wear(outfit_id):
+    db = get_db()
+    outfit = db.execute("SELECT id FROM outfits WHERE id = ?", (outfit_id,)).fetchone()
+    if not outfit:
+        return jsonify({"error": "Outfit not found"}), 404
+    data = request.get_json(silent=True) or {}
+    worn_date = data.get("date") or date.today().isoformat()
+    db.execute(
+        "INSERT INTO outfit_wears (outfit_id, worn_date) VALUES (?, ?)",
+        (outfit_id, worn_date)
+    )
+    db.commit()
+    return jsonify({"ok": True, "outfit_id": outfit_id}), 201
+
+
+@app.route("/api/outfit-wears/<int:wear_id>", methods=["DELETE"])
+def delete_outfit_wear(wear_id):
+    db = get_db()
+    db.execute("DELETE FROM outfit_wears WHERE id = ?", (wear_id,))
+    db.commit()
+    return jsonify({"deleted": wear_id})
+
+
+@app.route("/api/item-wear-counts")
+def item_wear_counts():
+    db = get_db()
+    rows = db.execute("""
+        SELECT oi.item_id, COUNT(ow.id) as wear_count,
+               MAX(ow.worn_date) as last_worn
+        FROM outfit_items oi
+        JOIN outfit_wears ow ON ow.outfit_id = oi.outfit_id
+        GROUP BY oi.item_id
+    """).fetchall()
+    return jsonify({
+        r["item_id"]: {"count": r["wear_count"], "last_worn": r["last_worn"]}
+        for r in rows
+    })
 
 
 @app.route("/api/meta")

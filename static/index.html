@@ -89,6 +89,21 @@
   }
   .outfit-name { font-size: 15px; font-weight: 600; margin-bottom: 4px; }
   .outfit-items-summary { font-size: 12px; color: #888; }
+  .outfit-wear-info {
+    display: flex; gap: 8px; align-items: center;
+    font-size: 11px; color: #888; margin-top: 4px;
+  }
+  .wear-count { font-weight: 600; }
+  .wear-never { color: #bbb; font-style: italic; }
+  .wear-last { color: #aaa; }
+  .btn-wore-it {
+    display: block; width: 100%; margin-top: 8px;
+    padding: 6px 0; border: 1px solid #ddd; border-radius: 6px;
+    background: #fafafa; color: #555; font-size: 12px; font-weight: 600;
+    cursor: pointer; transition: background 0.15s, color 0.15s;
+  }
+  .btn-wore-it:hover { background: #1a1a1a; color: #fff; }
+  .btn-wore-it:active { transform: scale(0.97); }
 
   /* Outfit builder modal */
   .outfit-modal {
@@ -1530,6 +1545,7 @@ let currentView = 'wardrobe';
 let activeSlot = null;
 let outfitSlots = { top: null, bottom: null, shoes: null, outerwear: null };
 let editingOutfitId = null;
+let itemWearCounts = null; // cached from /api/item-wear-counts
 
 const SLOT_CATEGORIES = { top: 'top', bottom: 'bottom', shoes: 'shoes', outerwear: 'outerwear' };
 const SLOT_LABELS = { top: 'Top', bottom: 'Bottom', shoes: 'Shoes', outerwear: 'Outerwear' };
@@ -2242,6 +2258,10 @@ function renderOutfits() {
       ? `<span class="outfit-activity-badge" style="background:${ACTIVITY_COLORS[outfit.activity]||'#1a1a1a'}">${outfit.activity}</span>`
       : '';
     const summary = SLOT_ORDER.map(s => slotMap[s]?.subcategory || slotMap[s]?.category).filter(Boolean).join(', ');
+    const wearInfo = outfit.wear_count > 0
+      ? `<span class="wear-count">Worn ${outfit.wear_count}x</span>
+         <span class="wear-last">· ${formatRelativeDate(outfit.last_worn)}</span>`
+      : `<span class="wear-count wear-never">Never worn</span>`;
     return `
       <div class="outfit-card" data-id="${outfit.id}" draggable="true">
         <div class="outfit-card-photos">${photos}</div>
@@ -2249,6 +2269,8 @@ function renderOutfits() {
           ${badge}
           <div class="outfit-name">${outfit.name || 'Unnamed outfit'}</div>
           <div class="outfit-items-summary">${summary || 'No items'}</div>
+          <div class="outfit-wear-info">${wearInfo}</div>
+          <button class="btn-wore-it" onclick="event.stopPropagation(); logWear(${outfit.id})">👔 Wore it</button>
         </div>
       </div>`;
   }).join('');
@@ -2338,7 +2360,6 @@ function renderSlot(slot) {
 function selectSlot(slot) {
   activeSlot = slot;
   renderAllSlots();
-  document.getElementById('picker-title').textContent = `Pick ${SLOT_LABELS[slot]}`;
   document.getElementById('picker-search').value = '';
   renderPickerGrid();
 }
@@ -2350,7 +2371,55 @@ function removeFromSlot(e, slot) {
   checkOutfitCompatibility();
 }
 
-function renderPickerGrid() {
+// ── Smart picker ordering ───────────────────────────────────────────────────
+
+async function fetchItemWearCounts() {
+  if (!itemWearCounts) {
+    itemWearCounts = await fetch('/api/item-wear-counts').then(r => r.json());
+  }
+  return itemWearCounts;
+}
+
+function colorHarmonyScore(colorsA, colorsB) {
+  if (!colorsA || !colorsB) return 0;
+  const a = colorsA.split(/[|,]/).map(s => s.trim().toLowerCase()).filter(Boolean);
+  const b = colorsB.split(/[|,]/).map(s => s.trim().toLowerCase()).filter(Boolean);
+  if (!a.length || !b.length) return 0;
+  const NEUTRALS = new Set(['black','white','grey','gray','navy','cream',
+    'beige','tan','charcoal','khaki','brown','cognac','oatmeal']);
+  let score = 0;
+  for (const ca of a) {
+    for (const cb of b) {
+      if (ca === cb) score += 1;
+      else if (NEUTRALS.has(ca) || NEUTRALS.has(cb)) score += 2;
+      else score -= 1;
+    }
+  }
+  return score;
+}
+
+function scoreCandidate(candidate, selectedItems) {
+  if (!selectedItems.length) return 0;
+  let score = 0;
+  for (const sel of selectedItems) {
+    // Weather overlap: +3 per shared value, -5 if zero overlap
+    const cw = new Set(parseWeather(candidate.weather));
+    const sw = new Set(parseWeather(sel.weather));
+    if (cw.size && sw.size) {
+      const shared = [...cw].filter(x => sw.has(x)).length;
+      score += shared > 0 ? shared * 3 : -5;
+    }
+    // Formality proximity: -2 per level of distance
+    if (candidate.formality && sel.formality) {
+      score -= Math.abs(candidate.formality - sel.formality) * 2;
+    }
+    // Color harmony
+    score += colorHarmonyScore(candidate.colors, sel.colors);
+  }
+  return score;
+}
+
+async function renderPickerGrid() {
   if (!activeSlot) return;
   const search = document.getElementById('picker-search').value.toLowerCase();
   const category = SLOT_CATEGORIES[activeSlot];
@@ -2360,6 +2429,30 @@ function renderPickerGrid() {
       [i.subcategory, i.colors, i.brand, i.id].join(' ').toLowerCase().includes(search)
     );
   }
+
+  // Smart ordering
+  const otherSelected = Object.entries(outfitSlots)
+    .filter(([slot, item]) => item && slot !== activeSlot)
+    .map(([, item]) => item);
+
+  let modeHint;
+  if (otherSelected.length > 0) {
+    items = items.map(item => ({ ...item, _score: scoreCandidate(item, otherSelected) }));
+    items.sort((a, b) => b._score - a._score);
+    modeHint = 'by compatibility';
+  } else {
+    const counts = await fetchItemWearCounts();
+    items.sort((a, b) => {
+      const ca = counts[a.id]?.count || 0;
+      const cb = counts[b.id]?.count || 0;
+      return cb - ca;
+    });
+    modeHint = 'most worn first';
+  }
+
+  document.getElementById('picker-title').textContent =
+    `Pick ${SLOT_LABELS[activeSlot]} (${modeHint})`;
+
   const grid = document.getElementById('picker-grid');
   if (!items.length) {
     grid.innerHTML = `<div style="grid-column:1/-1;padding:20px;color:#aaa;text-align:center;font-size:13px">No ${category} items found</div>`;
@@ -2502,6 +2595,7 @@ async function saveOutfit() {
 
   if (res.ok) {
     allOutfits = await fetch('/api/outfits').then(r => r.json());
+    itemWearCounts = null; // invalidate cache
     renderOutfits();
     document.getElementById('outfit-overlay').classList.remove('open');
   } else {
@@ -2513,8 +2607,35 @@ async function deleteOutfit() {
   if (!editingOutfitId || !confirm('Delete this outfit?')) return;
   await fetch(`/api/outfits/${editingOutfitId}`, { method: 'DELETE' });
   allOutfits = allOutfits.filter(o => o.id !== editingOutfitId);
+  itemWearCounts = null; // invalidate cache
   renderOutfits();
   document.getElementById('outfit-overlay').classList.remove('open');
+}
+
+async function logWear(outfitId) {
+  const res = await fetch(`/api/outfits/${outfitId}/wear`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({})
+  });
+  if (res.ok) {
+    allOutfits = await fetch('/api/outfits').then(r => r.json());
+    itemWearCounts = null; // invalidate cache
+    renderOutfits();
+  }
+}
+
+function formatRelativeDate(dateStr) {
+  if (!dateStr) return '';
+  const d = new Date(dateStr + 'T00:00:00');
+  const now = new Date();
+  const diff = Math.floor((now - d) / 86400000);
+  if (diff === 0) return 'today';
+  if (diff === 1) return 'yesterday';
+  if (diff < 7) return `${diff}d ago`;
+  if (diff < 30) return `${Math.floor(diff / 7)}w ago`;
+  if (diff < 365) return `${Math.floor(diff / 30)}mo ago`;
+  return `${Math.floor(diff / 365)}y ago`;
 }
 
 // ── End outfit functions ─────────────────────────────────────────────────────
