@@ -401,12 +401,12 @@ def log_outfit_wear(outfit_id):
         return jsonify({"error": "Outfit not found"}), 404
     data = request.get_json(silent=True) or {}
     worn_date = data.get("date") or date.today().isoformat()
-    db.execute(
+    cur = db.execute(
         "INSERT INTO outfit_wears (outfit_id, worn_date) VALUES (?, ?)",
         (outfit_id, worn_date)
     )
     db.commit()
-    return jsonify({"ok": True, "outfit_id": outfit_id}), 201
+    return jsonify({"ok": True, "outfit_id": outfit_id, "wear_id": cur.lastrowid}), 201
 
 
 @app.route("/api/outfit-wears/<int:wear_id>", methods=["DELETE"])

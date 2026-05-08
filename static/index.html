@@ -151,6 +151,12 @@
   }
   .btn-wore-it:hover { background: #1a1a1a; color: #fff; }
   .btn-wore-it:active { transform: scale(0.97); }
+  .btn-wore-it.undo-active {
+    background: #fef3c7; color: #92400e; border-color: #fde68a;
+    animation: undo-pulse 1s ease-in-out;
+  }
+  .btn-wore-it.undo-active:hover { background: #fde68a; color: #78350f; }
+  @keyframes undo-pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.7; } }
 
   /* Outfit builder modal */
   .outfit-modal {
@@ -2454,7 +2460,7 @@ function renderOutfits() {
           <div class="outfit-name">${outfit.name || 'Unnamed outfit'}</div>
           <div class="outfit-items-summary">${summary || 'No items'}</div>
           <div class="outfit-wear-info">${wearInfo}</div>
-          <button class="btn-wore-it" onclick="event.stopPropagation(); logWear(${outfit.id})">👔 Wore it</button>
+          <button class="btn-wore-it" data-outfit="${outfit.id}" onclick="event.stopPropagation(); logWear(${outfit.id}, this)">👔 Wore it</button>
         </div>
       </div>`;
   }).join('');
@@ -2853,17 +2859,49 @@ async function deleteOutfit() {
   document.getElementById('outfit-overlay').classList.remove('open');
 }
 
-async function logWear(outfitId) {
+async function logWear(outfitId, btnEl) {
   const res = await fetch(`/api/outfits/${outfitId}/wear`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({})
   });
-  if (res.ok) {
-    allOutfits = await fetch('/api/outfits').then(r => r.json());
-    itemWearCounts = null; // invalidate cache
-    renderOutfits();
-  }
+  if (!res.ok) return;
+  const { wear_id } = await res.json();
+
+  // Update local data
+  allOutfits = await fetch('/api/outfits').then(r => r.json());
+  itemWearCounts = null;
+  renderOutfits();
+
+  // Find the button again after re-render (DOM was replaced)
+  const btn = document.querySelector(`.btn-wore-it[data-outfit="${outfitId}"]`);
+  if (!btn) return;
+
+  // Flip to undo state
+  btn.textContent = '↩ Undo';
+  btn.classList.add('undo-active');
+  btn.onclick = async (e) => {
+    e.stopPropagation();
+    await undoWear(outfitId, wear_id);
+  };
+
+  // Auto-revert after 5 seconds
+  const timer = setTimeout(() => {
+    btn.textContent = '👔 Wore it';
+    btn.classList.remove('undo-active');
+    btn.onclick = (e) => { e.stopPropagation(); logWear(outfitId, btn); };
+  }, 5000);
+
+  // Store timer so undo can clear it
+  btn._undoTimer = timer;
+  btn._wearId = wear_id;
+}
+
+async function undoWear(outfitId, wearId) {
+  await fetch(`/api/outfit-wears/${wearId}`, { method: 'DELETE' });
+  allOutfits = await fetch('/api/outfits').then(r => r.json());
+  itemWearCounts = null;
+  renderOutfits();
 }
 
 function formatRelativeDate(dateStr) {
