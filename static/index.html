@@ -177,6 +177,18 @@
     justify-content: space-between;
   }
   .outfit-modal-header h2 { font-size: 18px; font-weight: 600; }
+  .outfit-modal-header-actions { display: flex; align-items: center; gap: 12px; }
+  .btn-wore-it-modal {
+    padding: 5px 14px; border: 1px solid #ddd; border-radius: 6px;
+    background: #fafafa; color: #555; font-size: 12px; font-weight: 600;
+    cursor: pointer; transition: all 0.15s; white-space: nowrap;
+  }
+  .btn-wore-it-modal:hover { background: #1a1a1a; color: #fff; }
+  .btn-wore-it-modal:active { transform: scale(0.97); }
+  .btn-wore-it-modal.undo-active {
+    background: #fef3c7; color: #92400e; border-color: #fde68a;
+  }
+  .btn-wore-it-modal.undo-active:hover { background: #fde68a; color: #78350f; }
   .outfit-modal-body {
     display: flex;
     flex-direction: column;
@@ -1451,7 +1463,10 @@
   <div class="outfit-modal">
     <div class="outfit-modal-header">
       <h2 id="outfit-modal-title">New Outfit</h2>
-      <button class="modal-close" onclick="document.getElementById('outfit-overlay').classList.remove('open')">×</button>
+      <div class="outfit-modal-header-actions">
+        <button class="btn-wore-it-modal" id="modal-wore-btn" style="display:none" onclick="logWearFromModal()">👔 Wore it</button>
+        <button class="modal-close" onclick="document.getElementById('outfit-overlay').classList.remove('open')">×</button>
+      </div>
     </div>
     <div class="outfit-modal-body">
       <!-- Left: slots panel -->
@@ -2485,13 +2500,22 @@ function openOutfitBuilder(outfitId) {
   const nameInput = document.getElementById('outfit-name');
   const activitySelect = document.getElementById('outfit-activity');
 
+  const woreBtn = document.getElementById('modal-wore-btn');
+
   if (editingOutfitId) {
     const outfit = allOutfits.find(o => o.id === editingOutfitId);
     if (outfit) {
+      const wearText = outfit.wear_count > 0
+        ? `Worn ${outfit.wear_count}x · ${formatRelativeDate(outfit.last_worn)}`
+        : '';
       title.textContent = outfit.name || 'Edit Outfit';
+      if (wearText) title.textContent += ` — ${wearText}`;
       nameInput.value = outfit.name || '';
       activitySelect.value = outfit.activity || '';
       deleteBtn.style.display = '';
+      woreBtn.style.display = '';
+      woreBtn.textContent = '👔 Wore it';
+      woreBtn.classList.remove('undo-active');
       outfit.items.forEach(it => {
         if (it.slot in outfitSlots) {
           outfitSlots[it.slot] = allItems.find(i => i.id === it.item_id) || {
@@ -2505,6 +2529,7 @@ function openOutfitBuilder(outfitId) {
     nameInput.value = '';
     activitySelect.value = '';
     deleteBtn.style.display = 'none';
+    woreBtn.style.display = 'none';
   }
 
   renderAllSlots();
@@ -2902,6 +2927,58 @@ async function undoWear(outfitId, wearId) {
   allOutfits = await fetch('/api/outfits').then(r => r.json());
   itemWearCounts = null;
   renderOutfits();
+}
+
+async function logWearFromModal() {
+  if (!editingOutfitId) return;
+  const btn = document.getElementById('modal-wore-btn');
+  const res = await fetch(`/api/outfits/${editingOutfitId}/wear`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({})
+  });
+  if (!res.ok) return;
+  const { wear_id } = await res.json();
+
+  // Update data
+  allOutfits = await fetch('/api/outfits').then(r => r.json());
+  itemWearCounts = null;
+  renderOutfits();
+
+  // Update modal title with new wear count
+  const outfit = allOutfits.find(o => o.id === editingOutfitId);
+  if (outfit) {
+    const wearText = `Worn ${outfit.wear_count}x · ${formatRelativeDate(outfit.last_worn)}`;
+    document.getElementById('outfit-modal-title').textContent =
+      `${outfit.name || 'Edit Outfit'} — ${wearText}`;
+  }
+
+  // Flip to undo
+  btn.textContent = '↩ Undo';
+  btn.classList.add('undo-active');
+  btn.onclick = async () => {
+    await undoWear(editingOutfitId, wear_id);
+    // Refresh title
+    const updated = allOutfits.find(o => o.id === editingOutfitId);
+    if (updated) {
+      const t = updated.wear_count > 0
+        ? `${updated.name || 'Edit Outfit'} — Worn ${updated.wear_count}x · ${formatRelativeDate(updated.last_worn)}`
+        : updated.name || 'Edit Outfit';
+      document.getElementById('outfit-modal-title').textContent = t;
+    }
+    btn.textContent = '👔 Wore it';
+    btn.classList.remove('undo-active');
+    btn.onclick = logWearFromModal;
+  };
+
+  // Auto-revert after 5s
+  setTimeout(() => {
+    if (btn.classList.contains('undo-active')) {
+      btn.textContent = '👔 Wore it';
+      btn.classList.remove('undo-active');
+      btn.onclick = logWearFromModal;
+    }
+  }, 5000);
 }
 
 function formatRelativeDate(dateStr) {
