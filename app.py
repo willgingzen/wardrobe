@@ -456,6 +456,39 @@ def serve_inspo_image(filename):
     return send_from_directory(INSPO_DIR, filename)
 
 
+def _inspo_image_srcs(inspo_id: int) -> list[str]:
+    """Find all images for an inspiration entry.
+
+    Supports single-image (``{id}.jpg``) and multi-image
+    (``{id}_1.jpg``, ``{id}_2.jpg``, …) naming conventions.
+    Returns a list of ``/inspo/…`` URL strings with cache-bust params.
+    """
+    srcs: list[str] = []
+    # Check multi-image first (from X imports): {id}_1.jpg, {id}_2.jpg, …
+    idx = 1
+    while True:
+        found = False
+        for ext in (".jpg", ".png", ".webp"):
+            p = INSPO_DIR / f"{inspo_id}_{idx}{ext}"
+            if p.exists():
+                mtime = int(p.stat().st_mtime)
+                srcs.append(f"/inspo/{inspo_id}_{idx}{ext}?v={mtime}")
+                found = True
+                break
+        if not found:
+            break
+        idx += 1
+    if srcs:
+        return srcs
+    # Fall back to single image: {id}.jpg
+    for ext in (".jpg", ".png", ".webp"):
+        p = INSPO_DIR / f"{inspo_id}{ext}"
+        if p.exists():
+            mtime = int(p.stat().st_mtime)
+            return [f"/inspo/{inspo_id}{ext}?v={mtime}"]
+    return []
+
+
 @app.route("/api/inspirations", methods=["GET"])
 def list_inspirations():
     db = get_db()
@@ -463,18 +496,9 @@ def list_inspirations():
     result = []
     for r in rows:
         d = dict(r)
-        img_path = INSPO_DIR / f"{d['id']}.jpg"
-        if img_path.exists():
-            mtime = int(img_path.stat().st_mtime)
-            d["image_src"] = f"/inspo/{d['id']}.jpg?v={mtime}"
-        else:
-            # Check for png
-            img_path_png = INSPO_DIR / f"{d['id']}.png"
-            if img_path_png.exists():
-                mtime = int(img_path_png.stat().st_mtime)
-                d["image_src"] = f"/inspo/{d['id']}.png?v={mtime}"
-            else:
-                d["image_src"] = None
+        srcs = _inspo_image_srcs(d["id"])
+        d["image_srcs"] = srcs
+        d["image_src"] = srcs[0] if srcs else None  # backward compat
         result.append(d)
     return jsonify(result)
 
@@ -505,14 +529,9 @@ def create_inspiration():
 
     row = db.execute("SELECT * FROM inspirations WHERE id = ?", (inspo_id,)).fetchone()
     d = dict(row)
-    for check_ext in (".jpg", ".png", ".webp"):
-        p = INSPO_DIR / f"{inspo_id}{check_ext}"
-        if p.exists():
-            mtime = int(p.stat().st_mtime)
-            d["image_src"] = f"/inspo/{inspo_id}{check_ext}?v={mtime}"
-            break
-    else:
-        d["image_src"] = None
+    srcs = _inspo_image_srcs(inspo_id)
+    d["image_srcs"] = srcs
+    d["image_src"] = srcs[0] if srcs else None
     return jsonify(d), 201
 
 
@@ -542,14 +561,9 @@ def update_inspiration(inspo_id):
 
     row = db.execute("SELECT * FROM inspirations WHERE id = ?", (inspo_id,)).fetchone()
     d = dict(row)
-    for check_ext in (".jpg", ".png", ".webp"):
-        p = INSPO_DIR / f"{inspo_id}{check_ext}"
-        if p.exists():
-            mtime = int(p.stat().st_mtime)
-            d["image_src"] = f"/inspo/{inspo_id}{check_ext}?v={mtime}"
-            break
-    else:
-        d["image_src"] = None
+    srcs = _inspo_image_srcs(inspo_id)
+    d["image_srcs"] = srcs
+    d["image_src"] = srcs[0] if srcs else None
     return jsonify(d)
 
 
@@ -558,10 +572,24 @@ def delete_inspiration(inspo_id):
     db = get_db()
     db.execute("DELETE FROM inspirations WHERE id = ?", (inspo_id,))
     db.commit()
+    # Remove single image
     for ext in (".jpg", ".jpeg", ".png", ".webp"):
         p = INSPO_DIR / f"{inspo_id}{ext}"
         if p.exists():
             p.unlink()
+    # Remove multi-images ({id}_1.jpg, {id}_2.jpg, …)
+    idx = 1
+    while True:
+        found = False
+        for ext in (".jpg", ".png", ".webp"):
+            p = INSPO_DIR / f"{inspo_id}_{idx}{ext}"
+            if p.exists():
+                p.unlink()
+                found = True
+                break
+        if not found:
+            break
+        idx += 1
     return jsonify({"deleted": inspo_id})
 
 
@@ -596,14 +624,20 @@ def import_inspiration_from_url():
         return jsonify({"error": "No images found in this post"}), 404
 
     db = get_db()
-    created = []
 
-    for photo in photos:
+    # Create ONE entry for the whole post
+    cur = db.execute(
+        "INSERT INTO inspirations (title, source_url, notes, tags) VALUES (?,?,?,?)",
+        (f"@{username}", url, text, "")
+    )
+    inspo_id = cur.lastrowid
+
+    # Download all images as {id}_1.jpg, {id}_2.jpg, …
+    saved = 0
+    for i, photo in enumerate(photos, 1):
         img_url = photo.get("url", "")
         if not img_url:
             continue
-
-        # Download image
         try:
             img_req = Request(img_url, headers={"User-Agent": "Wardrobe/1.0"})
             with urlopen(img_req, timeout=30) as img_resp:
@@ -612,36 +646,30 @@ def import_inspiration_from_url():
         except URLError:
             continue
 
-        # Determine extension
         ext = ".jpg"
         if "png" in content_type:
             ext = ".png"
         elif "webp" in content_type:
             ext = ".webp"
 
-        # Create DB entry
-        cur = db.execute(
-            "INSERT INTO inspirations (title, source_url, notes, tags) VALUES (?,?,?,?)",
-            (f"@{username}", url, text, "")
-        )
-        inspo_id = cur.lastrowid
+        (INSPO_DIR / f"{inspo_id}_{i}{ext}").write_bytes(img_bytes)
+        saved += 1
 
-        # Save image file
-        (INSPO_DIR / f"{inspo_id}{ext}").write_bytes(img_bytes)
+    if not saved:
+        db.execute("DELETE FROM inspirations WHERE id = ?", (inspo_id,))
         db.commit()
-
-        # Build response dict
-        row = db.execute("SELECT * FROM inspirations WHERE id = ?",
-                         (inspo_id,)).fetchone()
-        d = dict(row)
-        p = INSPO_DIR / f"{inspo_id}{ext}"
-        d["image_src"] = f"/inspo/{inspo_id}{ext}?v={int(p.stat().st_mtime)}"
-        created.append(d)
-
-    if not created:
         return jsonify({"error": "Could not download any images"}), 502
 
-    return jsonify({"created": created, "count": len(created),
+    db.commit()
+
+    row = db.execute("SELECT * FROM inspirations WHERE id = ?",
+                     (inspo_id,)).fetchone()
+    d = dict(row)
+    srcs = _inspo_image_srcs(inspo_id)
+    d["image_srcs"] = srcs
+    d["image_src"] = srcs[0] if srcs else None
+
+    return jsonify({"created": d, "count": saved,
                     "author": author_name, "text": text}), 201
 
 

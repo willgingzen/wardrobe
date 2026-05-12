@@ -972,9 +972,27 @@
     box-shadow: 0 4px 16px rgba(0,0,0,0.12);
     transform: translateY(-2px);
   }
-  .inspo-card img {
+  .inspo-card > img {
     width: 100%;
     display: block;
+  }
+  .inspo-card-collage {
+    display: grid;
+    gap: 2px;
+    background: #e8e8e8;
+  }
+  .inspo-card-collage.cols-2 { grid-template-columns: 1fr 1fr; }
+  .inspo-card-collage.cols-3 { grid-template-columns: 1fr 1fr; }
+  .inspo-card-collage.cols-4 { grid-template-columns: 1fr 1fr; }
+  .inspo-card-collage img {
+    width: 100%;
+    aspect-ratio: 1;
+    object-fit: cover;
+    display: block;
+  }
+  .inspo-card-collage.cols-3 img:first-child {
+    grid-column: 1 / -1;
+    aspect-ratio: 2 / 1;
   }
   .inspo-card-body {
     padding: 10px 12px;
@@ -1041,6 +1059,18 @@
   .inspo-detail-img {
     width: 100%;
     display: block;
+    border-radius: 16px 16px 0 0;
+  }
+  .inspo-detail-images {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .inspo-detail-images img {
+    width: 100%;
+    display: block;
+  }
+  .inspo-detail-images img:first-child {
     border-radius: 16px 16px 0 0;
   }
   .inspo-detail-body {
@@ -3821,9 +3851,19 @@ function renderInspoCards() {
   grid.innerHTML = filtered.map(inspo => {
     const tags = inspo.tags ? inspo.tags.split(',').map(t => t.trim()).filter(Boolean) : [];
     const sourceHost = inspo.source_url ? (() => { try { return new URL(inspo.source_url).hostname.replace('www.',''); } catch(e) { return ''; } })() : '';
+    const srcs = inspo.image_srcs || (inspo.image_src ? [inspo.image_src] : []);
+
+    let imageHtml = '';
+    if (srcs.length === 1) {
+      imageHtml = `<img src="${srcs[0]}" loading="lazy">`;
+    } else if (srcs.length > 1) {
+      const colClass = srcs.length === 2 ? 'cols-2' : srcs.length === 3 ? 'cols-3' : 'cols-4';
+      imageHtml = `<div class="inspo-card-collage ${colClass}">${srcs.map(s => `<img src="${s}" loading="lazy">`).join('')}</div>`;
+    }
+
     return `
       <div class="inspo-card" onclick="openInspoDetail(${inspo.id})">
-        ${inspo.image_src ? `<img src="${inspo.image_src}" loading="lazy">` : ''}
+        ${imageHtml}
         <div class="inspo-card-body">
           ${inspo.title ? `<div class="inspo-card-title">${inspo.title}</div>` : ''}
           ${inspo.notes ? `<div class="inspo-card-notes">${inspo.notes.length > 80 ? inspo.notes.slice(0,80) + '…' : inspo.notes}</div>` : ''}
@@ -3842,8 +3882,15 @@ function openInspoDetail(id) {
   const tags = inspo.tags ? inspo.tags.split(',').map(t => t.trim()).filter(Boolean) : [];
   const sourceHost = inspo.source_url ? (() => { try { return new URL(inspo.source_url).hostname.replace('www.',''); } catch(e) { return inspo.source_url; } })() : '';
   const modal = document.getElementById('inspo-detail-modal');
+  const detailSrcs = inspo.image_srcs || (inspo.image_src ? [inspo.image_src] : []);
+  let detailImgHtml = '';
+  if (detailSrcs.length === 1) {
+    detailImgHtml = `<img class="inspo-detail-img" src="${detailSrcs[0]}">`;
+  } else if (detailSrcs.length > 1) {
+    detailImgHtml = `<div class="inspo-detail-images">${detailSrcs.map(s => `<img src="${s}">`).join('')}</div>`;
+  }
   modal.innerHTML = `
-    ${inspo.image_src ? `<img class="inspo-detail-img" src="${inspo.image_src}">` : ''}
+    ${detailImgHtml}
     <div class="inspo-detail-body">
       ${inspo.title ? `<div class="inspo-detail-title">${inspo.title}</div>` : '<div class="inspo-detail-title" style="color:#bbb">Untitled</div>'}
       ${inspo.notes ? `<div class="inspo-detail-notes">${inspo.notes}</div>` : ''}
@@ -3955,7 +4002,8 @@ async function fetchFromLink() {
     }
 
     status.className = 'inspo-link-status success';
-    status.textContent = `Added ${data.count} image${data.count === 1 ? '' : 's'} from @${data.created[0]?.title?.replace('@','') || 'post'}`;
+    const author = data.created?.title?.replace('@','') || 'post';
+    status.textContent = `Added ${data.count} image${data.count === 1 ? '' : 's'} from @${author}`;
 
     // Close modal after brief delay and refresh grid
     setTimeout(async () => {
