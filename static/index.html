@@ -2021,12 +2021,12 @@
     <!-- Link import section -->
     <div class="inspo-link-section" id="inspo-link-section">
       <div class="inspo-form-group" style="margin-bottom:8px">
-        <label>Paste X links (one per line)</label>
+        <label>Paste links (one per line)</label>
         <div class="inspo-link-row">
-          <textarea id="inspo-link-input" rows="2" placeholder="https://x.com/user/status/123&#10;https://x.com/user/status/456" oninput="updateFetchBtn()" style="flex:1;padding:10px 12px;border:1px solid #ddd;border-radius:8px;font-size:14px;font-family:inherit;outline:none;resize:vertical;min-height:44px"></textarea>
+          <textarea id="inspo-link-input" rows="2" placeholder="https://x.com/user/status/123&#10;https://example.com/lookbook-page" oninput="updateFetchBtn()" style="flex:1;padding:10px 12px;border:1px solid #ddd;border-radius:8px;font-size:14px;font-family:inherit;outline:none;resize:vertical;min-height:44px"></textarea>
           <button class="inspo-btn-fetch" id="inspo-fetch-btn" onclick="fetchFromLink()" disabled style="align-self:flex-end">Fetch</button>
         </div>
-        <div class="inspo-link-hint">Paste one or more X / Twitter post links — grabs all images into a single card</div>
+        <div class="inspo-link-hint">X posts, fashion blogs, lookbook pages — grabs all images into a single card</div>
       </div>
       <div id="inspo-link-status"></div>
     </div>
@@ -3993,8 +3993,8 @@ function editInspo(id) {
 
 function updateFetchBtn() {
   const text = document.getElementById('inspo-link-input').value.trim();
-  const xPattern = /https?:\/\/(x|twitter)\.com\/\w+\/status\/\d+/;
-  const hasValidLink = text.split('\n').some(line => xPattern.test(line.trim()));
+  const urlPattern = /^https?:\/\/.+/;
+  const hasValidLink = text.split('\n').some(line => urlPattern.test(line.trim()));
   document.getElementById('inspo-fetch-btn').disabled = !hasValidLink;
 }
 
@@ -4002,8 +4002,8 @@ async function fetchFromLink() {
   const text = document.getElementById('inspo-link-input').value.trim();
   const btn = document.getElementById('inspo-fetch-btn');
   const status = document.getElementById('inspo-link-status');
-  const xPattern = /https?:\/\/(x|twitter)\.com\/\w+\/status\/\d+/;
-  const urls = text.split('\n').map(l => l.trim()).filter(l => xPattern.test(l));
+  const urlPattern = /^https?:\/\/.+/;
+  const urls = text.split('\n').map(l => l.trim()).filter(l => urlPattern.test(l));
 
   if (!urls.length) return;
 
@@ -4027,8 +4027,8 @@ async function fetchFromLink() {
     }
 
     status.className = 'inspo-link-status success';
-    const author = data.created?.title?.replace('@','') || 'post';
-    status.textContent = `Added ${data.count} image${data.count === 1 ? '' : 's'} from @${author}`;
+    const source = data.created?.title || 'page';
+    status.textContent = `Added ${data.count} image${data.count === 1 ? '' : 's'} from ${source}`;
 
     // Close modal after brief delay and refresh grid
     setTimeout(async () => {

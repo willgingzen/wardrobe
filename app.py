@@ -6,7 +6,8 @@ import sqlite3
 from datetime import date
 from pathlib import Path
 from urllib.request import urlopen, Request
-from urllib.error import URLError
+from urllib.error import URLError, HTTPError
+from urllib.parse import urljoin
 from flask import Flask, jsonify, request, send_from_directory, g
 from dotenv import load_dotenv
 
@@ -611,65 +612,142 @@ def _fetch_tweet(username: str, tweet_id: str) -> dict | None:
         return None
 
 
-@app.route("/api/inspirations/from-urls", methods=["POST"])
-def import_inspiration_from_urls():
-    """Import inspiration images from one or more X/Twitter post URLs.
+_JUNK_PATTERNS = re.compile(
+    r"logo|icon|avatar|pixel|badge|tracking|spacer|spinner|loading|"
+    r"emoji|favicon|widget|button|arrow|nav|banner-ad|advertisement|"
+    r"1x1|blank\.gif|data:image",
+    re.IGNORECASE,
+)
+_BROWSER_HEADERS = {
+    "User-Agent": (
+        "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) "
+        "AppleWebKit/537.36 (KHTML, like Gecko) "
+        "Chrome/120.0.0.0 Safari/537.36"
+    ),
+    "Accept": "text/html,application/xhtml+xml",
+    "Accept-Language": "en-US,en;q=0.9",
+}
 
-    All images across all URLs are combined into a single inspiration card.
+
+def _scrape_page_images(url: str) -> dict:
+    """Scrape a web page for large content images.
+
+    Returns ``{"title": str, "images": [url, …], "source": str}``.
+    Raises on network errors or Cloudflare blocks.
     """
-    data = request.get_json()
-    urls = data.get("urls") or []
-    if not urls:
-        return jsonify({"error": "No URLs provided"}), 400
+    req = Request(url, headers=_BROWSER_HEADERS)
+    with urlopen(req, timeout=15) as resp:
+        html = resp.read().decode("utf-8", errors="ignore")
 
-    # Parse and fetch all tweets
-    all_photos: list[str] = []       # image URLs to download
-    first_username = ""
-    first_author = ""
-    notes_parts: list[str] = []
-    source_url = urls[0]
+    # Check for Cloudflare challenge
+    if "Attention Required" in html[:500] or "cf-browser-verification" in html[:2000]:
+        raise ValueError(
+            "This site uses Cloudflare protection — save the images "
+            "and use manual upload instead"
+        )
 
-    for url in urls:
-        m = re.match(r"https?://(?:x|twitter)\.com/(\w+)/status/(\d+)", url)
-        if not m:
-            continue
-        username, tweet_id = m.group(1), m.group(2)
-        tweet = _fetch_tweet(username, tweet_id)
-        if not tweet:
-            continue
-
-        if not first_username:
-            first_username = tweet["username"]
-            first_author = tweet["author"]
-
-        for photo in tweet["photos"]:
-            img_url = photo.get("url", "")
-            if img_url:
-                all_photos.append(img_url)
-
-        if tweet["text"] and tweet["text"] not in notes_parts:
-            notes_parts.append(tweet["text"])
-
-    if not all_photos:
-        return jsonify({"error": "No images found in any of the posts"}), 404
-
-    db = get_db()
-    notes = "\n\n".join(notes_parts)
-    cur = db.execute(
-        "INSERT INTO inspirations (title, source_url, notes, tags) VALUES (?,?,?,?)",
-        (f"@{first_username}", source_url, notes, "")
+    # Extract title (OG > <title>)
+    og_title = re.search(
+        r'property=["\']og:title["\'][^>]+content=["\']([^"\']+)', html
+    ) or re.search(
+        r'content=["\']([^"\']+)["\'][^>]+property=["\']og:title', html
     )
-    inspo_id = cur.lastrowid
+    html_title = re.search(r"<title>(.*?)</title>", html, re.I)
+    title = (
+        og_title.group(1) if og_title
+        else html_title.group(1) if html_title
+        else ""
+    )
+    # Clean HTML entities
+    title = title.replace("&#8211;", "–").replace("&#8217;", "'").replace("&amp;", "&")
 
-    # Download all images as {id}_1.jpg, {id}_2.jpg, …
+    # Collect candidate image URLs with size hints
+    candidates: list[tuple[str, int, int]] = []  # (url, width, height)
+
+    for img_tag in re.finditer(r"<img[^>]+>", html, re.I):
+        tag = img_tag.group()
+        src_m = re.search(r'src=["\']([^"\']+)', tag)
+        if not src_m:
+            continue
+        src = urljoin(url, src_m.group(1))
+        if _JUNK_PATTERNS.search(src):
+            continue
+
+        w_m = re.search(r'width=["\']?(\d+)', tag)
+        h_m = re.search(r'height=["\']?(\d+)', tag)
+        w = int(w_m.group(1)) if w_m else 0
+        h = int(h_m.group(1)) if h_m else 0
+
+        # Try srcset for a higher-res version
+        srcset_m = re.search(r'srcset=["\']([^"\']+)', tag)
+        if srcset_m:
+            best_src, best_w = src, w
+            for part in srcset_m.group(1).split(","):
+                part = part.strip()
+                pieces = part.split()
+                if len(pieces) >= 2 and pieces[1].endswith("w"):
+                    cand_w = int(pieces[1][:-1])
+                    if cand_w > best_w:
+                        best_w = cand_w
+                        best_src = urljoin(url, pieces[0])
+            src = best_src
+            w = max(w, best_w)
+
+        candidates.append((src, w, h))
+
+    # Also grab OG image as a fallback
+    og_img = re.search(
+        r'property=["\']og:image["\'][^>]+content=["\']([^"\']+)', html
+    ) or re.search(
+        r'content=["\']([^"\']+)["\'][^>]+property=["\']og:image', html
+    )
+    if og_img:
+        og_url = urljoin(url, og_img.group(1))
+        if not _JUNK_PATTERNS.search(og_url):
+            candidates.append((og_url, 1200, 630))
+
+    # Deduplicate by base URL (strip query params for comparison)
+    seen: set[str] = set()
+    unique: list[tuple[str, int, int]] = []
+    for img_url, w, h in candidates:
+        base = img_url.split("?")[0]
+        if base not in seen:
+            seen.add(base)
+            unique.append((img_url, w, h))
+
+    # Filter: keep images likely ≥ 300px wide (or unknown size)
+    filtered = [
+        img_url for img_url, w, h in unique
+        if (w == 0 or w >= 300) and (h == 0 or h >= 200)
+    ]
+
+    # If we got too few with the filter, relax it
+    if len(filtered) < 2:
+        filtered = [
+            img_url for img_url, w, h in unique
+            if (w == 0 or w >= 150) and (h == 0 or h >= 150)
+        ]
+
+    return {"title": title.strip(), "images": filtered, "source": url}
+
+
+def _download_images(inspo_id: int, image_urls: list[str]) -> int:
+    """Download a list of image URLs and save as {inspo_id}_1.jpg, etc.
+
+    Returns the number of images successfully saved.
+    """
     saved = 0
-    for i, img_url in enumerate(all_photos, 1):
+    for i, img_url in enumerate(image_urls, 1):
         try:
-            img_req = Request(img_url, headers={"User-Agent": "Wardrobe/1.0"})
+            img_req = Request(img_url, headers=_BROWSER_HEADERS)
             with urlopen(img_req, timeout=30) as img_resp:
                 img_bytes = img_resp.read()
                 content_type = img_resp.headers.get("Content-Type", "image/jpeg")
-        except URLError:
+        except (URLError, HTTPError):
+            continue
+
+        # Skip tiny files (likely tracking pixels / broken images)
+        if len(img_bytes) < 5_000:
             continue
 
         ext = ".jpg"
@@ -681,10 +759,79 @@ def import_inspiration_from_urls():
         (INSPO_DIR / f"{inspo_id}_{i}{ext}").write_bytes(img_bytes)
         saved += 1
 
+    return saved
+
+
+@app.route("/api/inspirations/from-urls", methods=["POST"])
+def import_inspiration_from_urls():
+    """Import inspiration images from X/Twitter posts or web page URLs.
+
+    All images across all URLs are combined into a single inspiration card.
+    """
+    data = request.get_json()
+    urls = data.get("urls") or []
+    if not urls:
+        return jsonify({"error": "No URLs provided"}), 400
+
+    x_pattern = re.compile(r"https?://(?:x|twitter)\.com/(\w+)/status/(\d+)")
+
+    all_photos: list[str] = []
+    title = ""
+    notes_parts: list[str] = []
+    source_url = urls[0]
+
+    for url in urls:
+        x_match = x_pattern.match(url)
+
+        if x_match:
+            # ── X/Twitter post ──
+            username, tweet_id = x_match.group(1), x_match.group(2)
+            tweet = _fetch_tweet(username, tweet_id)
+            if not tweet:
+                continue
+
+            if not title:
+                title = f"@{tweet['username']}"
+
+            for photo in tweet["photos"]:
+                img_url = photo.get("url", "")
+                if img_url:
+                    all_photos.append(img_url)
+
+            if tweet["text"] and tweet["text"] not in notes_parts:
+                notes_parts.append(tweet["text"])
+
+        else:
+            # ── General web page ──
+            try:
+                page = _scrape_page_images(url)
+            except ValueError as e:
+                return jsonify({"error": str(e)}), 400
+            except (URLError, HTTPError) as e:
+                return jsonify({"error": f"Could not fetch page: {e}"}), 502
+
+            if not title:
+                title = page["title"]
+
+            all_photos.extend(page["images"])
+
+    if not all_photos:
+        return jsonify({"error": "No images found in any of the links"}), 404
+
+    db = get_db()
+    notes = "\n\n".join(notes_parts)
+    cur = db.execute(
+        "INSERT INTO inspirations (title, source_url, notes, tags) VALUES (?,?,?,?)",
+        (title, source_url, notes, "")
+    )
+    inspo_id = cur.lastrowid
+
+    saved = _download_images(inspo_id, all_photos)
+
     if not saved:
         db.execute("DELETE FROM inspirations WHERE id = ?", (inspo_id,))
         db.commit()
-        return jsonify({"error": "Could not download any images"}), 502
+        return jsonify({"error": "Could not download any images from the page"}), 502
 
     db.commit()
 
@@ -696,7 +843,7 @@ def import_inspiration_from_urls():
     d["image_src"] = srcs[0] if srcs else None
 
     return jsonify({"created": d, "count": saved,
-                    "author": first_author, "text": notes}), 201
+                    "author": title, "text": notes}), 201
 
 
 @app.route("/api/meta")
