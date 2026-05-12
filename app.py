@@ -593,51 +593,77 @@ def delete_inspiration(inspo_id):
     return jsonify({"deleted": inspo_id})
 
 
-@app.route("/api/inspirations/from-url", methods=["POST"])
-def import_inspiration_from_url():
-    """Import inspiration images from an X/Twitter post URL."""
-    data = request.get_json()
-    url = (data.get("url") or "").strip()
-
-    # Parse X/Twitter URL
-    m = re.match(r"https?://(?:x|twitter)\.com/(\w+)/status/(\d+)", url)
-    if not m:
-        return jsonify({"error": "Only X/Twitter links are supported right now"}), 400
-
-    username, tweet_id = m.group(1), m.group(2)
-
-    # Fetch tweet data via fxtwitter API
+def _fetch_tweet(username: str, tweet_id: str) -> dict | None:
+    """Fetch a single tweet via fxtwitter API. Returns dict with text, author, photos."""
     api_url = f"https://api.fxtwitter.com/{username}/status/{tweet_id}"
     try:
         req = Request(api_url, headers={"User-Agent": "Wardrobe/1.0"})
         with urlopen(req, timeout=15) as resp:
-            tweet_data = json.loads(resp.read().decode())
-    except (URLError, json.JSONDecodeError) as e:
-        return jsonify({"error": f"Could not fetch post: {e}"}), 502
+            data = json.loads(resp.read().decode())
+        tweet = data.get("tweet", {})
+        return {
+            "text": tweet.get("text", ""),
+            "author": tweet.get("author", {}).get("name", username),
+            "username": tweet.get("author", {}).get("screen_name", username),
+            "photos": tweet.get("media", {}).get("photos", []),
+        }
+    except (URLError, json.JSONDecodeError):
+        return None
 
-    tweet = tweet_data.get("tweet", {})
-    text = tweet.get("text", "")
-    author_name = tweet.get("author", {}).get("name", username)
-    photos = tweet.get("media", {}).get("photos", [])
 
-    if not photos:
-        return jsonify({"error": "No images found in this post"}), 404
+@app.route("/api/inspirations/from-urls", methods=["POST"])
+def import_inspiration_from_urls():
+    """Import inspiration images from one or more X/Twitter post URLs.
+
+    All images across all URLs are combined into a single inspiration card.
+    """
+    data = request.get_json()
+    urls = data.get("urls") or []
+    if not urls:
+        return jsonify({"error": "No URLs provided"}), 400
+
+    # Parse and fetch all tweets
+    all_photos: list[str] = []       # image URLs to download
+    first_username = ""
+    first_author = ""
+    notes_parts: list[str] = []
+    source_url = urls[0]
+
+    for url in urls:
+        m = re.match(r"https?://(?:x|twitter)\.com/(\w+)/status/(\d+)", url)
+        if not m:
+            continue
+        username, tweet_id = m.group(1), m.group(2)
+        tweet = _fetch_tweet(username, tweet_id)
+        if not tweet:
+            continue
+
+        if not first_username:
+            first_username = tweet["username"]
+            first_author = tweet["author"]
+
+        for photo in tweet["photos"]:
+            img_url = photo.get("url", "")
+            if img_url:
+                all_photos.append(img_url)
+
+        if tweet["text"] and tweet["text"] not in notes_parts:
+            notes_parts.append(tweet["text"])
+
+    if not all_photos:
+        return jsonify({"error": "No images found in any of the posts"}), 404
 
     db = get_db()
-
-    # Create ONE entry for the whole post
+    notes = "\n\n".join(notes_parts)
     cur = db.execute(
         "INSERT INTO inspirations (title, source_url, notes, tags) VALUES (?,?,?,?)",
-        (f"@{username}", url, text, "")
+        (f"@{first_username}", source_url, notes, "")
     )
     inspo_id = cur.lastrowid
 
     # Download all images as {id}_1.jpg, {id}_2.jpg, …
     saved = 0
-    for i, photo in enumerate(photos, 1):
-        img_url = photo.get("url", "")
-        if not img_url:
-            continue
+    for i, img_url in enumerate(all_photos, 1):
         try:
             img_req = Request(img_url, headers={"User-Agent": "Wardrobe/1.0"})
             with urlopen(img_req, timeout=30) as img_resp:
@@ -670,7 +696,7 @@ def import_inspiration_from_url():
     d["image_src"] = srcs[0] if srcs else None
 
     return jsonify({"created": d, "count": saved,
-                    "author": author_name, "text": text}), 201
+                    "author": first_author, "text": notes}), 201
 
 
 @app.route("/api/meta")

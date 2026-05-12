@@ -994,6 +994,16 @@
     grid-column: 1 / -1;
     aspect-ratio: 2 / 1;
   }
+  .inspo-collage-more {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0,0,0,0.55);
+    color: #fff;
+    font-size: 16px;
+    font-weight: 700;
+    aspect-ratio: 1;
+  }
   .inspo-card-body {
     padding: 10px 12px;
   }
@@ -2011,12 +2021,12 @@
     <!-- Link import section -->
     <div class="inspo-link-section" id="inspo-link-section">
       <div class="inspo-form-group" style="margin-bottom:8px">
-        <label>Paste a link</label>
+        <label>Paste X links (one per line)</label>
         <div class="inspo-link-row">
-          <input type="url" id="inspo-link-input" placeholder="https://x.com/..." oninput="updateFetchBtn()">
-          <button class="inspo-btn-fetch" id="inspo-fetch-btn" onclick="fetchFromLink()" disabled>Fetch</button>
+          <textarea id="inspo-link-input" rows="2" placeholder="https://x.com/user/status/123&#10;https://x.com/user/status/456" oninput="updateFetchBtn()" style="flex:1;padding:10px 12px;border:1px solid #ddd;border-radius:8px;font-size:14px;font-family:inherit;outline:none;resize:vertical;min-height:44px"></textarea>
+          <button class="inspo-btn-fetch" id="inspo-fetch-btn" onclick="fetchFromLink()" disabled style="align-self:flex-end">Fetch</button>
         </div>
-        <div class="inspo-link-hint">Supports X / Twitter posts — grabs all images automatically</div>
+        <div class="inspo-link-hint">Paste one or more X / Twitter post links — grabs all images into a single card</div>
       </div>
       <div id="inspo-link-status"></div>
     </div>
@@ -3857,8 +3867,18 @@ function renderInspoCards() {
     if (srcs.length === 1) {
       imageHtml = `<img src="${srcs[0]}" loading="lazy">`;
     } else if (srcs.length > 1) {
-      const colClass = srcs.length === 2 ? 'cols-2' : srcs.length === 3 ? 'cols-3' : 'cols-4';
-      imageHtml = `<div class="inspo-card-collage ${colClass}">${srcs.map(s => `<img src="${s}" loading="lazy">`).join('')}</div>`;
+      const show = srcs.slice(0, 4);
+      const extra = srcs.length - 4;
+      const colClass = show.length === 2 ? 'cols-2' : show.length === 3 ? 'cols-3' : 'cols-4';
+      let cells = show.map(s => `<img src="${s}" loading="lazy">`);
+      if (extra > 0) {
+        // Replace last image with "+N" overlay
+        cells[3] = `<div class="inspo-collage-more" style="position:relative">
+          <img src="${show[3]}" loading="lazy" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:0.4">
+          <span style="position:relative">+${extra}</span>
+        </div>`;
+      }
+      imageHtml = `<div class="inspo-card-collage ${colClass}">${cells.join('')}</div>`;
     }
 
     return `
@@ -3972,26 +3992,31 @@ function editInspo(id) {
 }
 
 function updateFetchBtn() {
-  const url = document.getElementById('inspo-link-input').value.trim();
-  const isXLink = /^https?:\/\/(x|twitter)\.com\/\w+\/status\/\d+/.test(url);
-  document.getElementById('inspo-fetch-btn').disabled = !isXLink;
+  const text = document.getElementById('inspo-link-input').value.trim();
+  const xPattern = /https?:\/\/(x|twitter)\.com\/\w+\/status\/\d+/;
+  const hasValidLink = text.split('\n').some(line => xPattern.test(line.trim()));
+  document.getElementById('inspo-fetch-btn').disabled = !hasValidLink;
 }
 
 async function fetchFromLink() {
-  const url = document.getElementById('inspo-link-input').value.trim();
+  const text = document.getElementById('inspo-link-input').value.trim();
   const btn = document.getElementById('inspo-fetch-btn');
   const status = document.getElementById('inspo-link-status');
+  const xPattern = /https?:\/\/(x|twitter)\.com\/\w+\/status\/\d+/;
+  const urls = text.split('\n').map(l => l.trim()).filter(l => xPattern.test(l));
+
+  if (!urls.length) return;
 
   btn.disabled = true;
   btn.textContent = 'Fetching…';
   status.className = 'inspo-link-status loading';
-  status.textContent = 'Downloading images from post…';
+  status.textContent = `Downloading images from ${urls.length} post${urls.length > 1 ? 's' : ''}…`;
 
   try {
-    const res = await fetch('/api/inspirations/from-url', {
+    const res = await fetch('/api/inspirations/from-urls', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ url })
+      body: JSON.stringify({ urls })
     });
     const data = await res.json();
 
