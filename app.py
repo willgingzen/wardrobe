@@ -629,6 +629,61 @@ _BROWSER_HEADERS = {
 }
 
 
+_RELATED_SECTION_RE = re.compile(
+    r"explore\s+more|related\s+(posts?|articles?|stories|campaigns?|content)|"
+    r"you\s+may\s+also\s+like|more\s+(stories|articles?|campaigns?|from)|"
+    r"recommended\s+for\s+you|also\s+on\s|trending\s+now|"
+    r"popular\s+posts?|latest\s+posts?|read\s+next|up\s+next|"
+    r"don.t\s+miss|see\s+also|similar\s+stories|more\s+to\s+explore",
+    re.IGNORECASE,
+)
+
+
+def _find_content_cutoff(html: str) -> int:
+    """Find the character position where main article content ends.
+
+    Looks for "related content" section markers (headings, labeled divs)
+    and returns the earliest position where one appears.  Everything after
+    this point is considered non-article content (explore-more grids, etc.).
+
+    Returns ``len(html)`` if no marker is found (i.e. use the whole page).
+    """
+    cutoff = len(html)
+
+    # Strategy 1: headings that introduce related-content blocks
+    # e.g.  <h2>Explore More Campaigns</h2>
+    for m in re.finditer(r"<h[1-6][^>]*>([^<]{0,120})</h[1-6]>", html, re.I):
+        heading_text = m.group(1)
+        if _RELATED_SECTION_RE.search(heading_text):
+            cutoff = min(cutoff, m.start())
+
+    # Strategy 2: section / div / aside with class/id hinting at related content
+    # e.g.  <section class="related-posts"> or <div id="explore-more">
+    for m in re.finditer(
+        r"<(section|div|aside|nav|footer)\b[^>]*"
+        r"(?:class|id)=[\"']([^\"']{0,200})[\"']",
+        html, re.I,
+    ):
+        attr_val = m.group(2)
+        if re.search(
+            r"related|more-stories|explore-more|recommended|"
+            r"also-like|read-next|trending|popular-posts|"
+            r"latest-posts|similar|see-also|dont-miss",
+            attr_val, re.I,
+        ):
+            cutoff = min(cutoff, m.start())
+
+    # Strategy 3: plain-text markers outside of tags (some sites use styled
+    # <p> or <span> instead of headings for section labels)
+    for m in re.finditer(
+        r">([^<]{0,80}(?:explore\s+more|related\s+\w+|you\s+may\s+also)[^<]{0,40})<",
+        html, re.I,
+    ):
+        cutoff = min(cutoff, m.start())
+
+    return cutoff
+
+
 def _scrape_page_images(url: str) -> dict:
     """Scrape a web page for large content images.
 
@@ -661,10 +716,51 @@ def _scrape_page_images(url: str) -> dict:
     # Clean HTML entities
     title = title.replace("&#8211;", "–").replace("&#8217;", "'").replace("&amp;", "&")
 
+    # ── Restrict to main article content ──
+    # First, try to find a content container (<article>, <main>,
+    # or a div with a content-related class).  If found, only search
+    # for images inside it.  Otherwise fall back to the full page but
+    # cut off at any "related content" section marker.
+    content_html = html  # default: entire page
+    article_m = re.search(
+        r"(<article[\s>].*?</article>)", html, re.I | re.DOTALL
+    )
+    if not article_m:
+        # Try <main> or common content wrappers
+        article_m = re.search(
+            r"(<main[\s>].*?</main>)", html, re.I | re.DOTALL
+        )
+    if not article_m:
+        for cls in (
+            "post-content", "entry-content", "article-content",
+            "article-body", "story-body", "page-content",
+            "single-content", "content-area", "main-content",
+        ):
+            article_m = re.search(
+                rf'(<div[^>]+class=["\'][^"\']*\b{cls}\b[^"\']*["\'][^>]*>.*?</div>)',
+                html, re.I | re.DOTALL,
+            )
+            if article_m:
+                break
+
+    if article_m:
+        content_html = article_m.group(1)
+    else:
+        # No semantic content container — trim at first "related" section
+        cutoff = _find_content_cutoff(html)
+        if cutoff < len(html):
+            content_html = html[:cutoff]
+
+    # Always trim related-content sections, even inside <article>/<main>
+    # (many sites nest "Explore More" grids inside the article wrapper)
+    cutoff = _find_content_cutoff(content_html)
+    if cutoff < len(content_html):
+        content_html = content_html[:cutoff]
+
     # Collect candidate image URLs with size hints
     candidates: list[tuple[str, int, int]] = []  # (url, width, height)
 
-    for img_tag in re.finditer(r"<img[^>]+>", html, re.I):
+    for img_tag in re.finditer(r"<img[^>]+>", content_html, re.I):
         tag = img_tag.group()
         src_m = re.search(r'src=["\']([^"\']+)', tag)
         if not src_m:
