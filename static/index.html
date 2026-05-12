@@ -904,6 +904,291 @@
   .empty { text-align: center; padding: 60px 24px; color: #888; }
   .empty h3 { margin-bottom: 8px; }
 
+  /* ── Inspiration board ───────────────────────────────────────────────── */
+  #inspo-wrap {
+    padding: 16px 24px 64px;
+  }
+  .inspo-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+  }
+  .inspo-header h2 { font-size: 20px; font-weight: 700; }
+  .inspo-header p { font-size: 13px; color: #888; margin-top: 2px; }
+  .btn-add-inspo {
+    padding: 8px 18px;
+    background: #1a1a1a;
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s;
+    white-space: nowrap;
+  }
+  .btn-add-inspo:hover { background: #333; }
+
+  .inspo-tags-bar {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 16px;
+  }
+  .inspo-tag-filter {
+    padding: 4px 14px;
+    border: 1px solid #ddd;
+    border-radius: 20px;
+    background: #fff;
+    font-size: 12px;
+    font-weight: 500;
+    color: #666;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .inspo-tag-filter:hover { border-color: #999; }
+  .inspo-tag-filter.active {
+    background: #1a1a1a;
+    color: #fff;
+    border-color: #1a1a1a;
+  }
+
+  .inspo-grid {
+    columns: 3;
+    column-gap: 16px;
+  }
+  .inspo-card {
+    break-inside: avoid;
+    margin-bottom: 16px;
+    background: #fff;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+    cursor: pointer;
+    transition: box-shadow 0.15s, transform 0.15s;
+  }
+  .inspo-card:hover {
+    box-shadow: 0 4px 16px rgba(0,0,0,0.12);
+    transform: translateY(-2px);
+  }
+  .inspo-card img {
+    width: 100%;
+    display: block;
+  }
+  .inspo-card-body {
+    padding: 10px 12px;
+  }
+  .inspo-card-title {
+    font-size: 14px;
+    font-weight: 600;
+    margin-bottom: 4px;
+    line-height: 1.3;
+  }
+  .inspo-card-notes {
+    font-size: 12px;
+    color: #888;
+    line-height: 1.4;
+    margin-bottom: 6px;
+  }
+  .inspo-card-tags {
+    display: flex;
+    gap: 4px;
+    flex-wrap: wrap;
+  }
+  .inspo-tag {
+    font-size: 10px;
+    padding: 2px 8px;
+    background: #f0f0f0;
+    border-radius: 10px;
+    color: #666;
+    font-weight: 500;
+  }
+  .inspo-card-source {
+    font-size: 11px;
+    color: #aaa;
+    margin-top: 6px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .inspo-card-source a {
+    color: #888;
+    text-decoration: none;
+  }
+  .inspo-card-source a:hover { text-decoration: underline; }
+
+  /* Inspo detail overlay */
+  .inspo-detail-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.6);
+    z-index: 200;
+    align-items: center;
+    justify-content: center;
+  }
+  .inspo-detail-overlay.open { display: flex; }
+  .inspo-detail-modal {
+    background: #fff;
+    border-radius: 16px;
+    max-width: 600px;
+    width: 95vw;
+    max-height: 90vh;
+    overflow-y: auto;
+    position: relative;
+  }
+  .inspo-detail-img {
+    width: 100%;
+    display: block;
+    border-radius: 16px 16px 0 0;
+  }
+  .inspo-detail-body {
+    padding: 20px;
+  }
+  .inspo-detail-title {
+    font-size: 18px;
+    font-weight: 700;
+    margin-bottom: 8px;
+  }
+  .inspo-detail-notes {
+    font-size: 14px;
+    color: #555;
+    line-height: 1.5;
+    margin-bottom: 12px;
+  }
+  .inspo-detail-meta {
+    font-size: 12px;
+    color: #aaa;
+    margin-bottom: 16px;
+  }
+  .inspo-detail-meta a { color: #888; }
+  .inspo-detail-actions {
+    display: flex;
+    gap: 10px;
+    border-top: 1px solid #eee;
+    padding-top: 16px;
+  }
+  .inspo-detail-actions button {
+    flex: 1;
+    padding: 10px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    background: #fafafa;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .inspo-detail-actions button:hover { background: #f0f0f0; }
+  .inspo-detail-actions .btn-delete-inspo {
+    color: #dc2626;
+    border-color: #fecaca;
+  }
+  .inspo-detail-actions .btn-delete-inspo:hover {
+    background: #fef2f2;
+  }
+
+  /* Add inspo modal */
+  .inspo-add-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.5);
+    z-index: 250;
+    align-items: center;
+    justify-content: center;
+  }
+  .inspo-add-overlay.open { display: flex; }
+  .inspo-add-modal {
+    background: #fff;
+    border-radius: 16px;
+    max-width: 500px;
+    width: 95vw;
+    max-height: 90vh;
+    overflow-y: auto;
+    padding: 24px;
+  }
+  .inspo-add-modal h3 {
+    font-size: 18px;
+    font-weight: 700;
+    margin-bottom: 16px;
+  }
+  .inspo-form-group {
+    margin-bottom: 14px;
+  }
+  .inspo-form-group label {
+    display: block;
+    font-size: 12px;
+    font-weight: 600;
+    color: #555;
+    margin-bottom: 4px;
+  }
+  .inspo-form-group input,
+  .inspo-form-group textarea {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    font-size: 14px;
+    font-family: inherit;
+    outline: none;
+    box-sizing: border-box;
+  }
+  .inspo-form-group textarea { resize: vertical; min-height: 60px; }
+  .inspo-form-group input:focus,
+  .inspo-form-group textarea:focus { border-color: #999; }
+  .inspo-upload-area {
+    border: 2px dashed #ddd;
+    border-radius: 12px;
+    padding: 32px;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color 0.15s, background 0.15s;
+    position: relative;
+    overflow: hidden;
+  }
+  .inspo-upload-area:hover { border-color: #999; background: #fafafa; }
+  .inspo-upload-area.has-image {
+    padding: 0;
+    border-style: solid;
+    border-color: #ccc;
+  }
+  .inspo-upload-area .upload-icon { font-size: 32px; margin-bottom: 8px; }
+  .inspo-upload-area .upload-text { font-size: 13px; color: #888; }
+  .inspo-upload-area img {
+    width: 100%;
+    display: block;
+    border-radius: 10px;
+  }
+  .inspo-add-actions {
+    display: flex;
+    gap: 10px;
+    margin-top: 20px;
+  }
+  .inspo-add-actions button {
+    flex: 1;
+    padding: 12px;
+    border-radius: 10px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  .inspo-btn-cancel {
+    background: #f5f5f5;
+    color: #555;
+    border: 1px solid #ddd;
+  }
+  .inspo-btn-cancel:hover { background: #eee; }
+  .inspo-btn-save {
+    background: #1a1a1a;
+    color: #fff;
+    border: none;
+  }
+  .inspo-btn-save:hover { background: #333; }
+  .inspo-btn-save:disabled { opacity: 0.4; cursor: not-allowed; }
+
   /* ── Style Guide view ──────────────────────────────────────────────── */
   #style-guide-wrap {
     max-width: 920px;
@@ -1339,6 +1624,13 @@
 
     /* Fit checker */
     .fit-check-wrap { padding: 16px 12px 80px; }
+
+    /* Inspiration */
+    #inspo-wrap { padding: 12px 12px 80px; }
+    .inspo-grid { columns: 2; column-gap: 10px; }
+    .inspo-card { margin-bottom: 10px; }
+    .inspo-card-title { font-size: 12px; }
+    .inspo-card-notes { font-size: 11px; }
   }
 
   @media (max-width: 380px) {
@@ -1356,6 +1648,7 @@
     <button class="active" data-view="wardrobe" onclick="setView('wardrobe')">Wardrobe</button>
     <button data-view="outfits" onclick="setView('outfits')">Outfits</button>
     <button data-view="shelf" onclick="setView('shelf')">Shelf</button>
+    <button data-view="inspo" onclick="setView('inspo')">Inspo</button>
     <button data-view="style" onclick="setView('style')">Style</button>
     <button data-view="fitcheck" onclick="setView('fitcheck')">Fit Check</button>
   </div>
@@ -1548,13 +1841,13 @@
       <span>Outfits</span>
     </button>
     <button class="bottom-nav-btn-add" onclick="openQuickAdd()" title="Quick Add">+</button>
+    <button class="bottom-nav-btn" data-view="inspo" onclick="setView('inspo')">
+      <span class="bottom-nav-icon">💡</span>
+      <span>Inspo</span>
+    </button>
     <button class="bottom-nav-btn" data-view="shelf" onclick="setView('shelf')">
       <span class="bottom-nav-icon">📦</span>
       <span>Shelf</span>
-    </button>
-    <button class="bottom-nav-btn" data-view="style" onclick="setView('style')">
-      <span class="bottom-nav-icon">🛒</span>
-      <span>Style</span>
     </button>
   </div>
 </nav>
@@ -1589,6 +1882,61 @@
 </div>
 
 <!-- Fit Checker view -->
+<!-- Inspiration board view -->
+<div id="inspo-wrap" style="display:none">
+  <div class="inspo-header">
+    <div>
+      <h2>Inspiration</h2>
+      <p>Save outfit ideas and style references</p>
+    </div>
+    <button class="btn-add-inspo" onclick="openAddInspo()">+ Add Inspo</button>
+  </div>
+  <div class="inspo-tags-bar" id="inspo-tags-bar"></div>
+  <div class="inspo-grid" id="inspo-grid"></div>
+</div>
+
+<!-- Inspo detail overlay -->
+<div class="inspo-detail-overlay" id="inspo-detail-overlay" onclick="if(event.target===this)closeInspoDetail()">
+  <div class="inspo-detail-modal" id="inspo-detail-modal"></div>
+</div>
+
+<!-- Inspo add/edit overlay -->
+<div class="inspo-add-overlay" id="inspo-add-overlay" onclick="if(event.target===this)closeAddInspo()">
+  <div class="inspo-add-modal">
+    <h3 id="inspo-add-title">Add Inspiration</h3>
+    <div class="inspo-form-group">
+      <label>Image</label>
+      <div class="inspo-upload-area" id="inspo-upload-area" onclick="document.getElementById('inspo-file').click()">
+        <div class="upload-icon">📷</div>
+        <div class="upload-text">Tap to upload or take a photo</div>
+        <img id="inspo-preview" style="display:none">
+        <input type="file" id="inspo-file" accept="image/*" style="display:none" onchange="previewInspoImage(this)">
+      </div>
+    </div>
+    <div class="inspo-form-group">
+      <label>Title</label>
+      <input type="text" id="inspo-title-input" placeholder="e.g. Summer linen look">
+    </div>
+    <div class="inspo-form-group">
+      <label>Tags (comma-separated)</label>
+      <input type="text" id="inspo-tags-input" placeholder="e.g. summer, casual, linen">
+    </div>
+    <div class="inspo-form-group">
+      <label>Notes</label>
+      <textarea id="inspo-notes-input" placeholder="What you like about this look..."></textarea>
+    </div>
+    <div class="inspo-form-group">
+      <label>Source URL (optional)</label>
+      <input type="url" id="inspo-source-input" placeholder="https://...">
+    </div>
+    <input type="hidden" id="inspo-edit-id" value="">
+    <div class="inspo-add-actions">
+      <button class="inspo-btn-cancel" onclick="closeAddInspo()">Cancel</button>
+      <button class="inspo-btn-save" id="inspo-save-btn" onclick="saveInspo()">Save</button>
+    </div>
+  </div>
+</div>
+
 <div id="fit-check-view" style="display:none">
   <div class="fit-check-wrap">
     <h2 style="font-size:20px;font-weight:700;margin-bottom:4px">Fit Checker</h2>
@@ -2351,6 +2699,7 @@ function setView(view) {
   document.getElementById('drag-hint').style.display         = view === 'wardrobe' ? '' : 'none';
   document.getElementById('outfit-grid-wrap').style.display  = view === 'outfits'  ? '' : 'none';
   document.getElementById('shelf-wrap').style.display        = view === 'shelf'    ? '' : 'none';
+  document.getElementById('inspo-wrap').style.display        = view === 'inspo'    ? '' : 'none';
   document.getElementById('style-guide-wrap').style.display  = view === 'style'    ? '' : 'none';
   document.getElementById('fit-check-view').style.display    = view === 'fitcheck' ? '' : 'none';
 
@@ -2362,6 +2711,9 @@ function setView(view) {
   } else if (view === 'shelf') {
     document.getElementById('count').textContent = '';
     renderShelf();
+  } else if (view === 'inspo') {
+    document.getElementById('count').textContent = '';
+    renderInspoGrid();
   } else if (view === 'style') {
     document.getElementById('count').textContent = '';
     renderStyleGuide();
@@ -2998,6 +3350,8 @@ function formatRelativeDate(dateStr) {
 
 document.addEventListener('keydown', e => {
   if (e.key === 'Escape') {
+    if (document.getElementById('inspo-add-overlay').classList.contains('open')) { closeAddInspo(); return; }
+    if (document.getElementById('inspo-detail-overlay').classList.contains('open')) { closeInspoDetail(); return; }
     if (document.getElementById('lightbox').classList.contains('open')) { closeLightbox(); return; }
     if (document.getElementById('outfit-overlay').classList.contains('open')) {
       document.getElementById('outfit-overlay').classList.remove('open'); return;
@@ -3012,7 +3366,7 @@ document.addEventListener('keydown', e => {
 
 init().then(() => {
   const saved = localStorage.getItem('wardrobeView');
-  if (saved && ['wardrobe','outfits','shelf','style','fitcheck'].includes(saved)) setView(saved);
+  if (saved && ['wardrobe','outfits','shelf','inspo','style','fitcheck'].includes(saved)) setView(saved);
 
   // Restore shelf zoom
   const savedZoom = localStorage.getItem('shelfZoom');
@@ -3310,6 +3664,206 @@ function quickAddFromFitCheck(category, subcategory) {
     preview.src = URL.createObjectURL(fileInput.files[0]);
     preview.style.display = 'block';
     document.getElementById('quick-add-capture').classList.add('has-image');
+  }
+}
+
+// ── Inspiration Board ───────────────────────────────────────────────────────
+
+let allInspirations = [];
+let inspoTagFilter = null;
+
+async function fetchInspirations() {
+  allInspirations = await fetch('/api/inspirations').then(r => r.json());
+}
+
+function getAllInspoTags() {
+  const tagSet = new Set();
+  allInspirations.forEach(inspo => {
+    if (inspo.tags) {
+      inspo.tags.split(',').map(t => t.trim()).filter(Boolean).forEach(t => tagSet.add(t));
+    }
+  });
+  return [...tagSet].sort();
+}
+
+function renderInspoTags() {
+  const tags = getAllInspoTags();
+  const bar = document.getElementById('inspo-tags-bar');
+  if (!tags.length) { bar.innerHTML = ''; return; }
+  bar.innerHTML = `
+    <button class="inspo-tag-filter ${!inspoTagFilter ? 'active' : ''}" onclick="filterInspoTag(null)">All</button>
+    ${tags.map(t => `<button class="inspo-tag-filter ${inspoTagFilter === t ? 'active' : ''}" onclick="filterInspoTag('${t.replace(/'/g, "\\'")}')">${t}</button>`).join('')}
+  `;
+}
+
+function filterInspoTag(tag) {
+  inspoTagFilter = tag;
+  renderInspoTags();
+  renderInspoCards();
+}
+
+async function renderInspoGrid() {
+  await fetchInspirations();
+  renderInspoTags();
+  renderInspoCards();
+}
+
+function renderInspoCards() {
+  const grid = document.getElementById('inspo-grid');
+  let filtered = allInspirations;
+  if (inspoTagFilter) {
+    filtered = allInspirations.filter(inspo =>
+      inspo.tags && inspo.tags.split(',').map(t => t.trim()).includes(inspoTagFilter)
+    );
+  }
+
+  if (!filtered.length) {
+    grid.innerHTML = `
+      <div class="empty" style="column-span:all">
+        <h3>${inspoTagFilter ? 'No inspiration with this tag' : 'No inspiration yet'}</h3>
+        <p>${inspoTagFilter ? 'Try a different tag or add more' : 'Save outfit ideas, style references, and looks you love'}</p>
+      </div>`;
+    return;
+  }
+
+  grid.innerHTML = filtered.map(inspo => {
+    const tags = inspo.tags ? inspo.tags.split(',').map(t => t.trim()).filter(Boolean) : [];
+    const sourceHost = inspo.source_url ? (() => { try { return new URL(inspo.source_url).hostname.replace('www.',''); } catch(e) { return ''; } })() : '';
+    return `
+      <div class="inspo-card" onclick="openInspoDetail(${inspo.id})">
+        ${inspo.image_src ? `<img src="${inspo.image_src}" loading="lazy">` : ''}
+        <div class="inspo-card-body">
+          ${inspo.title ? `<div class="inspo-card-title">${inspo.title}</div>` : ''}
+          ${inspo.notes ? `<div class="inspo-card-notes">${inspo.notes.length > 80 ? inspo.notes.slice(0,80) + '…' : inspo.notes}</div>` : ''}
+          ${tags.length ? `<div class="inspo-card-tags">${tags.map(t => `<span class="inspo-tag">${t}</span>`).join('')}</div>` : ''}
+          ${sourceHost ? `<div class="inspo-card-source">${sourceHost}</div>` : ''}
+        </div>
+      </div>`;
+  }).join('');
+
+  document.getElementById('count').textContent = `${filtered.length} inspo${filtered.length === 1 ? '' : 's'}`;
+}
+
+function openInspoDetail(id) {
+  const inspo = allInspirations.find(i => i.id === id);
+  if (!inspo) return;
+  const tags = inspo.tags ? inspo.tags.split(',').map(t => t.trim()).filter(Boolean) : [];
+  const sourceHost = inspo.source_url ? (() => { try { return new URL(inspo.source_url).hostname.replace('www.',''); } catch(e) { return inspo.source_url; } })() : '';
+  const modal = document.getElementById('inspo-detail-modal');
+  modal.innerHTML = `
+    ${inspo.image_src ? `<img class="inspo-detail-img" src="${inspo.image_src}">` : ''}
+    <div class="inspo-detail-body">
+      ${inspo.title ? `<div class="inspo-detail-title">${inspo.title}</div>` : '<div class="inspo-detail-title" style="color:#bbb">Untitled</div>'}
+      ${inspo.notes ? `<div class="inspo-detail-notes">${inspo.notes}</div>` : ''}
+      ${tags.length ? `<div style="margin-bottom:12px">${tags.map(t => `<span class="inspo-tag" style="font-size:12px;padding:3px 10px">${t}</span>`).join(' ')}</div>` : ''}
+      <div class="inspo-detail-meta">
+        ${inspo.source_url ? `<a href="${inspo.source_url}" target="_blank" rel="noopener">Source: ${sourceHost}</a> · ` : ''}
+        Added ${formatRelativeDate(inspo.created_at?.split(' ')[0] || inspo.created_at)}
+      </div>
+      <div class="inspo-detail-actions">
+        <button onclick="editInspo(${inspo.id})">✏️ Edit</button>
+        <button class="btn-delete-inspo" onclick="deleteInspo(${inspo.id})">🗑 Delete</button>
+      </div>
+    </div>`;
+  document.getElementById('inspo-detail-overlay').classList.add('open');
+}
+
+function closeInspoDetail() {
+  document.getElementById('inspo-detail-overlay').classList.remove('open');
+}
+
+function openAddInspo() {
+  document.getElementById('inspo-edit-id').value = '';
+  document.getElementById('inspo-add-title').textContent = 'Add Inspiration';
+  document.getElementById('inspo-title-input').value = '';
+  document.getElementById('inspo-tags-input').value = '';
+  document.getElementById('inspo-notes-input').value = '';
+  document.getElementById('inspo-source-input').value = '';
+  document.getElementById('inspo-file').value = '';
+  document.getElementById('inspo-preview').style.display = 'none';
+  document.getElementById('inspo-upload-area').classList.remove('has-image');
+  document.getElementById('inspo-add-overlay').classList.add('open');
+}
+
+function closeAddInspo() {
+  document.getElementById('inspo-add-overlay').classList.remove('open');
+}
+
+function previewInspoImage(input) {
+  if (input.files && input.files[0]) {
+    const preview = document.getElementById('inspo-preview');
+    preview.src = URL.createObjectURL(input.files[0]);
+    preview.style.display = 'block';
+    document.getElementById('inspo-upload-area').classList.add('has-image');
+  }
+}
+
+function editInspo(id) {
+  closeInspoDetail();
+  const inspo = allInspirations.find(i => i.id === id);
+  if (!inspo) return;
+  document.getElementById('inspo-edit-id').value = id;
+  document.getElementById('inspo-add-title').textContent = 'Edit Inspiration';
+  document.getElementById('inspo-title-input').value = inspo.title || '';
+  document.getElementById('inspo-tags-input').value = inspo.tags || '';
+  document.getElementById('inspo-notes-input').value = inspo.notes || '';
+  document.getElementById('inspo-source-input').value = inspo.source_url || '';
+  // Show existing image
+  const preview = document.getElementById('inspo-preview');
+  if (inspo.image_src) {
+    preview.src = inspo.image_src;
+    preview.style.display = 'block';
+    document.getElementById('inspo-upload-area').classList.add('has-image');
+  } else {
+    preview.style.display = 'none';
+    document.getElementById('inspo-upload-area').classList.remove('has-image');
+  }
+  document.getElementById('inspo-file').value = '';
+  document.getElementById('inspo-add-overlay').classList.add('open');
+}
+
+async function saveInspo() {
+  const btn = document.getElementById('inspo-save-btn');
+  btn.disabled = true;
+  btn.textContent = 'Saving…';
+
+  const editId = document.getElementById('inspo-edit-id').value;
+  const form = new FormData();
+  form.append('title', document.getElementById('inspo-title-input').value);
+  form.append('tags', document.getElementById('inspo-tags-input').value);
+  form.append('notes', document.getElementById('inspo-notes-input').value);
+  form.append('source_url', document.getElementById('inspo-source-input').value);
+  const fileInput = document.getElementById('inspo-file');
+  if (fileInput.files[0]) {
+    form.append('image', fileInput.files[0]);
+  }
+
+  try {
+    const url = editId ? `/api/inspirations/${editId}` : '/api/inspirations';
+    const method = editId ? 'PUT' : 'POST';
+    const res = await fetch(url, { method, body: form });
+    if (res.ok) {
+      closeAddInspo();
+      await renderInspoGrid();
+    } else {
+      alert('Failed to save inspiration');
+    }
+  } catch (err) {
+    alert('Error: ' + err.message);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Save';
+  }
+}
+
+async function deleteInspo(id) {
+  if (!confirm('Delete this inspiration?')) return;
+  try {
+    await fetch(`/api/inspirations/${id}`, { method: 'DELETE' });
+    closeInspoDetail();
+    await renderInspoGrid();
+  } catch (err) {
+    alert('Error: ' + err.message);
   }
 }
 

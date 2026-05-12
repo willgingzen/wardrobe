@@ -25,9 +25,11 @@ app = Flask(__name__, static_folder="static", static_url_path="")
 BASE_DIR = Path(__file__).parent
 DB_PATH = BASE_DIR / "wardrobe.db"
 IMAGES_DIR = BASE_DIR / "images"
+INSPO_DIR = BASE_DIR / "inspo"
 CSV_PATH = Path("/tmp/wardrobe_v4_fixed.csv")
 
 IMAGES_DIR.mkdir(exist_ok=True)
+INSPO_DIR.mkdir(exist_ok=True)
 
 
 # ---------------------------------------------------------------------------
@@ -107,6 +109,16 @@ def init_db():
             outfit_id   INTEGER NOT NULL,
             worn_date   TEXT NOT NULL DEFAULT (date('now')),
             FOREIGN KEY (outfit_id) REFERENCES outfits(id) ON DELETE CASCADE
+        )
+    """)
+    db.execute("""
+        CREATE TABLE IF NOT EXISTS inspirations (
+            id          INTEGER PRIMARY KEY AUTOINCREMENT,
+            title       TEXT DEFAULT '',
+            source_url  TEXT DEFAULT '',
+            notes       TEXT DEFAULT '',
+            tags        TEXT DEFAULT '',
+            created_at  TEXT DEFAULT (datetime('now'))
         )
     """)
     db.commit()
@@ -431,6 +443,124 @@ def item_wear_counts():
         r["item_id"]: {"count": r["wear_count"], "last_worn": r["last_worn"]}
         for r in rows
     })
+
+
+# ---------------------------------------------------------------------------
+# Inspirations
+# ---------------------------------------------------------------------------
+
+@app.route("/inspo/<filename>")
+def serve_inspo_image(filename):
+    return send_from_directory(INSPO_DIR, filename)
+
+
+@app.route("/api/inspirations", methods=["GET"])
+def list_inspirations():
+    db = get_db()
+    rows = db.execute("SELECT * FROM inspirations ORDER BY created_at DESC").fetchall()
+    result = []
+    for r in rows:
+        d = dict(r)
+        img_path = INSPO_DIR / f"{d['id']}.jpg"
+        if img_path.exists():
+            mtime = int(img_path.stat().st_mtime)
+            d["image_src"] = f"/inspo/{d['id']}.jpg?v={mtime}"
+        else:
+            # Check for png
+            img_path_png = INSPO_DIR / f"{d['id']}.png"
+            if img_path_png.exists():
+                mtime = int(img_path_png.stat().st_mtime)
+                d["image_src"] = f"/inspo/{d['id']}.png?v={mtime}"
+            else:
+                d["image_src"] = None
+        result.append(d)
+    return jsonify(result)
+
+
+@app.route("/api/inspirations", methods=["POST"])
+def create_inspiration():
+    db = get_db()
+    title = request.form.get("title", "")
+    source_url = request.form.get("source_url", "")
+    notes = request.form.get("notes", "")
+    tags = request.form.get("tags", "")
+    file = request.files.get("image")
+
+    cur = db.execute(
+        "INSERT INTO inspirations (title, source_url, notes, tags) VALUES (?,?,?,?)",
+        (title, source_url, notes, tags)
+    )
+    inspo_id = cur.lastrowid
+
+    if file and file.filename:
+        ext = Path(file.filename).suffix.lower() or ".jpg"
+        if ext not in (".jpg", ".jpeg", ".png", ".webp"):
+            ext = ".jpg"
+        filename = f"{inspo_id}{ext}"
+        file.save(INSPO_DIR / filename)
+
+    db.commit()
+
+    row = db.execute("SELECT * FROM inspirations WHERE id = ?", (inspo_id,)).fetchone()
+    d = dict(row)
+    for check_ext in (".jpg", ".png", ".webp"):
+        p = INSPO_DIR / f"{inspo_id}{check_ext}"
+        if p.exists():
+            mtime = int(p.stat().st_mtime)
+            d["image_src"] = f"/inspo/{inspo_id}{check_ext}?v={mtime}"
+            break
+    else:
+        d["image_src"] = None
+    return jsonify(d), 201
+
+
+@app.route("/api/inspirations/<int:inspo_id>", methods=["PUT"])
+def update_inspiration(inspo_id):
+    db = get_db()
+    data = request.form.to_dict()
+    file = request.files.get("image")
+
+    if file and file.filename:
+        # Remove old image
+        for ext in (".jpg", ".jpeg", ".png", ".webp"):
+            old = INSPO_DIR / f"{inspo_id}{ext}"
+            if old.exists():
+                old.unlink()
+        ext = Path(file.filename).suffix.lower() or ".jpg"
+        if ext not in (".jpg", ".jpeg", ".png", ".webp"):
+            ext = ".jpg"
+        file.save(INSPO_DIR / f"{inspo_id}{ext}")
+
+    db.execute(
+        "UPDATE inspirations SET title=?, source_url=?, notes=?, tags=? WHERE id=?",
+        (data.get("title", ""), data.get("source_url", ""),
+         data.get("notes", ""), data.get("tags", ""), inspo_id)
+    )
+    db.commit()
+
+    row = db.execute("SELECT * FROM inspirations WHERE id = ?", (inspo_id,)).fetchone()
+    d = dict(row)
+    for check_ext in (".jpg", ".png", ".webp"):
+        p = INSPO_DIR / f"{inspo_id}{check_ext}"
+        if p.exists():
+            mtime = int(p.stat().st_mtime)
+            d["image_src"] = f"/inspo/{inspo_id}{check_ext}?v={mtime}"
+            break
+    else:
+        d["image_src"] = None
+    return jsonify(d)
+
+
+@app.route("/api/inspirations/<int:inspo_id>", methods=["DELETE"])
+def delete_inspiration(inspo_id):
+    db = get_db()
+    db.execute("DELETE FROM inspirations WHERE id = ?", (inspo_id,))
+    db.commit()
+    for ext in (".jpg", ".jpeg", ".png", ".webp"):
+        p = INSPO_DIR / f"{inspo_id}{ext}"
+        if p.exists():
+            p.unlink()
+    return jsonify({"deleted": inspo_id})
 
 
 @app.route("/api/meta")
