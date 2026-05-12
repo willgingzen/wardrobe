@@ -5,6 +5,8 @@ import json
 import sqlite3
 from datetime import date
 from pathlib import Path
+from urllib.request import urlopen, Request
+from urllib.error import URLError
 from flask import Flask, jsonify, request, send_from_directory, g
 from dotenv import load_dotenv
 
@@ -561,6 +563,86 @@ def delete_inspiration(inspo_id):
         if p.exists():
             p.unlink()
     return jsonify({"deleted": inspo_id})
+
+
+@app.route("/api/inspirations/from-url", methods=["POST"])
+def import_inspiration_from_url():
+    """Import inspiration images from an X/Twitter post URL."""
+    data = request.get_json()
+    url = (data.get("url") or "").strip()
+
+    # Parse X/Twitter URL
+    m = re.match(r"https?://(?:x|twitter)\.com/(\w+)/status/(\d+)", url)
+    if not m:
+        return jsonify({"error": "Only X/Twitter links are supported right now"}), 400
+
+    username, tweet_id = m.group(1), m.group(2)
+
+    # Fetch tweet data via fxtwitter API
+    api_url = f"https://api.fxtwitter.com/{username}/status/{tweet_id}"
+    try:
+        req = Request(api_url, headers={"User-Agent": "Wardrobe/1.0"})
+        with urlopen(req, timeout=15) as resp:
+            tweet_data = json.loads(resp.read().decode())
+    except (URLError, json.JSONDecodeError) as e:
+        return jsonify({"error": f"Could not fetch post: {e}"}), 502
+
+    tweet = tweet_data.get("tweet", {})
+    text = tweet.get("text", "")
+    author_name = tweet.get("author", {}).get("name", username)
+    photos = tweet.get("media", {}).get("photos", [])
+
+    if not photos:
+        return jsonify({"error": "No images found in this post"}), 404
+
+    db = get_db()
+    created = []
+
+    for photo in photos:
+        img_url = photo.get("url", "")
+        if not img_url:
+            continue
+
+        # Download image
+        try:
+            img_req = Request(img_url, headers={"User-Agent": "Wardrobe/1.0"})
+            with urlopen(img_req, timeout=30) as img_resp:
+                img_bytes = img_resp.read()
+                content_type = img_resp.headers.get("Content-Type", "image/jpeg")
+        except URLError:
+            continue
+
+        # Determine extension
+        ext = ".jpg"
+        if "png" in content_type:
+            ext = ".png"
+        elif "webp" in content_type:
+            ext = ".webp"
+
+        # Create DB entry
+        cur = db.execute(
+            "INSERT INTO inspirations (title, source_url, notes, tags) VALUES (?,?,?,?)",
+            (f"@{username}", url, text, "")
+        )
+        inspo_id = cur.lastrowid
+
+        # Save image file
+        (INSPO_DIR / f"{inspo_id}{ext}").write_bytes(img_bytes)
+        db.commit()
+
+        # Build response dict
+        row = db.execute("SELECT * FROM inspirations WHERE id = ?",
+                         (inspo_id,)).fetchone()
+        d = dict(row)
+        p = INSPO_DIR / f"{inspo_id}{ext}"
+        d["image_src"] = f"/inspo/{inspo_id}{ext}?v={int(p.stat().st_mtime)}"
+        created.append(d)
+
+    if not created:
+        return jsonify({"error": "Could not download any images"}), 502
+
+    return jsonify({"created": created, "count": len(created),
+                    "author": author_name, "text": text}), 201
 
 
 @app.route("/api/meta")

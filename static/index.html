@@ -1138,6 +1138,79 @@
   .inspo-form-group textarea { resize: vertical; min-height: 60px; }
   .inspo-form-group input:focus,
   .inspo-form-group textarea:focus { border-color: #999; }
+  .inspo-link-section {
+    margin-bottom: 20px;
+  }
+  .inspo-link-row {
+    display: flex;
+    gap: 8px;
+  }
+  .inspo-link-row input {
+    flex: 1;
+    padding: 10px 12px;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    font-size: 14px;
+    font-family: inherit;
+    outline: none;
+    box-sizing: border-box;
+  }
+  .inspo-link-row input:focus { border-color: #999; }
+  .inspo-btn-fetch {
+    padding: 10px 18px;
+    background: #1a1a1a;
+    color: #fff;
+    border: none;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: background 0.15s;
+  }
+  .inspo-btn-fetch:hover { background: #333; }
+  .inspo-btn-fetch:disabled { opacity: 0.4; cursor: not-allowed; }
+  .inspo-link-hint {
+    font-size: 11px;
+    color: #aaa;
+    margin-top: 6px;
+  }
+  .inspo-link-status {
+    font-size: 13px;
+    margin-top: 10px;
+    padding: 10px 14px;
+    border-radius: 8px;
+  }
+  .inspo-link-status.loading {
+    background: #f0f4ff;
+    color: #2563eb;
+  }
+  .inspo-link-status.success {
+    background: #f0fdf4;
+    color: #16a34a;
+  }
+  .inspo-link-status.error {
+    background: #fef2f2;
+    color: #dc2626;
+  }
+  .inspo-divider {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin: 20px 0;
+    color: #bbb;
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  .inspo-divider::before,
+  .inspo-divider::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: #e5e5e5;
+  }
   .inspo-upload-area {
     border: 2px dashed #ddd;
     border-radius: 12px;
@@ -1904,35 +1977,54 @@
 <div class="inspo-add-overlay" id="inspo-add-overlay" onclick="if(event.target===this)closeAddInspo()">
   <div class="inspo-add-modal">
     <h3 id="inspo-add-title">Add Inspiration</h3>
-    <div class="inspo-form-group">
-      <label>Image</label>
-      <div class="inspo-upload-area" id="inspo-upload-area" onclick="document.getElementById('inspo-file').click()">
-        <div class="upload-icon">📷</div>
-        <div class="upload-text">Tap to upload or take a photo</div>
-        <img id="inspo-preview" style="display:none">
-        <input type="file" id="inspo-file" accept="image/*" style="display:none" onchange="previewInspoImage(this)">
+
+    <!-- Link import section -->
+    <div class="inspo-link-section" id="inspo-link-section">
+      <div class="inspo-form-group" style="margin-bottom:8px">
+        <label>Paste a link</label>
+        <div class="inspo-link-row">
+          <input type="url" id="inspo-link-input" placeholder="https://x.com/..." oninput="updateFetchBtn()">
+          <button class="inspo-btn-fetch" id="inspo-fetch-btn" onclick="fetchFromLink()" disabled>Fetch</button>
+        </div>
+        <div class="inspo-link-hint">Supports X / Twitter posts — grabs all images automatically</div>
       </div>
+      <div id="inspo-link-status"></div>
     </div>
-    <div class="inspo-form-group">
-      <label>Title</label>
-      <input type="text" id="inspo-title-input" placeholder="e.g. Summer linen look">
-    </div>
-    <div class="inspo-form-group">
-      <label>Tags (comma-separated)</label>
-      <input type="text" id="inspo-tags-input" placeholder="e.g. summer, casual, linen">
-    </div>
-    <div class="inspo-form-group">
-      <label>Notes</label>
-      <textarea id="inspo-notes-input" placeholder="What you like about this look..."></textarea>
-    </div>
-    <div class="inspo-form-group">
-      <label>Source URL (optional)</label>
-      <input type="url" id="inspo-source-input" placeholder="https://...">
-    </div>
-    <input type="hidden" id="inspo-edit-id" value="">
-    <div class="inspo-add-actions">
-      <button class="inspo-btn-cancel" onclick="closeAddInspo()">Cancel</button>
-      <button class="inspo-btn-save" id="inspo-save-btn" onclick="saveInspo()">Save</button>
+
+    <div class="inspo-divider" id="inspo-divider">or add manually</div>
+
+    <!-- Manual upload section -->
+    <div id="inspo-manual-section">
+      <div class="inspo-form-group">
+        <label>Image</label>
+        <div class="inspo-upload-area" id="inspo-upload-area" onclick="document.getElementById('inspo-file').click()">
+          <div class="upload-icon">📷</div>
+          <div class="upload-text">Tap to upload or take a photo</div>
+          <img id="inspo-preview" style="display:none">
+          <input type="file" id="inspo-file" accept="image/*" style="display:none" onchange="previewInspoImage(this)">
+        </div>
+      </div>
+      <div class="inspo-form-group">
+        <label>Title</label>
+        <input type="text" id="inspo-title-input" placeholder="e.g. Summer linen look">
+      </div>
+      <div class="inspo-form-group">
+        <label>Tags (comma-separated)</label>
+        <input type="text" id="inspo-tags-input" placeholder="e.g. summer, casual, linen">
+      </div>
+      <div class="inspo-form-group">
+        <label>Notes</label>
+        <textarea id="inspo-notes-input" placeholder="What you like about this look..."></textarea>
+      </div>
+      <div class="inspo-form-group">
+        <label>Source URL (optional)</label>
+        <input type="url" id="inspo-source-input" placeholder="https://...">
+      </div>
+      <input type="hidden" id="inspo-edit-id" value="">
+      <div class="inspo-add-actions">
+        <button class="inspo-btn-cancel" onclick="closeAddInspo()">Cancel</button>
+        <button class="inspo-btn-save" id="inspo-save-btn" onclick="saveInspo()">Save</button>
+      </div>
     </div>
   </div>
 </div>
@@ -3782,6 +3874,13 @@ function openAddInspo() {
   document.getElementById('inspo-file').value = '';
   document.getElementById('inspo-preview').style.display = 'none';
   document.getElementById('inspo-upload-area').classList.remove('has-image');
+  // Reset link section
+  document.getElementById('inspo-link-input').value = '';
+  document.getElementById('inspo-link-status').innerHTML = '';
+  document.getElementById('inspo-fetch-btn').disabled = true;
+  // Show link section for new entries
+  document.getElementById('inspo-link-section').style.display = '';
+  document.getElementById('inspo-divider').style.display = '';
   document.getElementById('inspo-add-overlay').classList.add('open');
 }
 
@@ -3804,6 +3903,9 @@ function editInspo(id) {
   if (!inspo) return;
   document.getElementById('inspo-edit-id').value = id;
   document.getElementById('inspo-add-title').textContent = 'Edit Inspiration';
+  // Hide link section when editing
+  document.getElementById('inspo-link-section').style.display = 'none';
+  document.getElementById('inspo-divider').style.display = 'none';
   document.getElementById('inspo-title-input').value = inspo.title || '';
   document.getElementById('inspo-tags-input').value = inspo.tags || '';
   document.getElementById('inspo-notes-input').value = inspo.notes || '';
@@ -3820,6 +3922,54 @@ function editInspo(id) {
   }
   document.getElementById('inspo-file').value = '';
   document.getElementById('inspo-add-overlay').classList.add('open');
+}
+
+function updateFetchBtn() {
+  const url = document.getElementById('inspo-link-input').value.trim();
+  const isXLink = /^https?:\/\/(x|twitter)\.com\/\w+\/status\/\d+/.test(url);
+  document.getElementById('inspo-fetch-btn').disabled = !isXLink;
+}
+
+async function fetchFromLink() {
+  const url = document.getElementById('inspo-link-input').value.trim();
+  const btn = document.getElementById('inspo-fetch-btn');
+  const status = document.getElementById('inspo-link-status');
+
+  btn.disabled = true;
+  btn.textContent = 'Fetching…';
+  status.className = 'inspo-link-status loading';
+  status.textContent = 'Downloading images from post…';
+
+  try {
+    const res = await fetch('/api/inspirations/from-url', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url })
+    });
+    const data = await res.json();
+
+    if (!res.ok) {
+      status.className = 'inspo-link-status error';
+      status.textContent = data.error || 'Failed to fetch';
+      return;
+    }
+
+    status.className = 'inspo-link-status success';
+    status.textContent = `Added ${data.count} image${data.count === 1 ? '' : 's'} from @${data.created[0]?.title?.replace('@','') || 'post'}`;
+
+    // Close modal after brief delay and refresh grid
+    setTimeout(async () => {
+      closeAddInspo();
+      await renderInspoGrid();
+    }, 1000);
+
+  } catch (err) {
+    status.className = 'inspo-link-status error';
+    status.textContent = 'Network error: ' + err.message;
+  } finally {
+    btn.textContent = 'Fetch';
+    updateFetchBtn();
+  }
 }
 
 async function saveInspo() {
