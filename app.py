@@ -993,12 +993,12 @@ def style_gaps():
             d["reason"] = reason
             cull_donate.append(d)
 
-    # ── Purchase list ────────────────────────────────────────────────────────
+    # ── Purchase list (revised May 2026 — aligned with inspiration board) ───
     purchase = [
         {
             "tier": 1,
             "name": "Suede Loafer",
-            "why": "Zero loafers in the wardrobe. Your tan Zara chelsea is doing 11 outfits solo — a loafer unlocks an entirely different going-out register and takes the pressure off one pair of fast-fashion shoes.",
+            "why": "The single most-pinned shoe across your inspo board — appears in 6+ pins from Brunello Cucinelli to @jakewoolf. Zero loafers in the wardrobe while the Zara chelsea carries 11 outfits. A penny loafer in tan or brown suede unlocks the relaxed-tailoring looks you're drawn to.",
             "brands": {
                 "niche": ["Sebago Beacon", "Sebago Dan", "Mulo", "Alden 990", "G.H. Bass Weejuns Larson", "Samuel Windsor", "Carmina", "Grenson Peter", "Sanders", "Tricker's"],
                 "sale": ["Banana Republic", "J.Crew", "Cole Haan", "Johnston & Murphy"],
@@ -1012,8 +1012,23 @@ def style_gaps():
         },
         {
             "tier": 1,
+            "name": "Unstructured Sport Coat",
+            "why": "The most-pinned garment type on your board — tweed, linen-wool, cotton. Your inspo shows sport coats over knitwear, OCBDs, tees, even hoodies. Every blazer you own is structured office-wear. An unstructured sport coat in tan/camel or olive is what bridges 'dressed up' and 'going out' in the Ivy/Mediterranean aesthetic.",
+            "brands": {
+                "niche": ["Drake's", "De Bonne Facture", "Beams Plus", "Oliver Spencer", "Rubato", "NN07", "Norse Projects", "Corridor", "Portuguese Flannel"],
+                "sale": ["J.Crew", "Club Monaco", "Banana Republic"],
+                "secondhand": ["Grailed", "The RealReal", "eBay"],
+            },
+            "options": [
+                {"brand": "J.Crew", "name": "Ludlow Slim Unstructured Blazer — Irish Linen", "price": "see site", "url": "https://www.jcrew.com/p/mens/categories/clothing/blazers/casual-blazers/ludlow-slim-fit-unstructured-blazer-in-irish-cotton-linen-blend/BW357"},
+                {"brand": "Grailed", "name": "Drake's / Beams Plus Sport Coat — Secondhand", "price": "$80–200", "url": "https://www.grailed.com/shop/sport-coats-and-blazers"},
+                {"brand": "The RealReal", "name": "Men's Unstructured Sport Coat — Secondhand", "price": "$100–200", "url": "https://www.therealreal.com/shop/men/jackets-and-blazers"},
+            ],
+        },
+        {
+            "tier": 1,
             "name": "Premium White T-Shirt",
-            "why": "The American Giant tee is doing date night duty across 6 outfits. A heavier, better-fitting white tee is one of the highest ROI purchases in a wardrobe — it's in almost every casual going-out look.",
+            "why": "Base layer in half your inspo looks — under sport coats, leather jackets, and on its own. The American Giant tee is doing date night duty across 6 outfits. A heavier, better-draping white tee is one of the highest ROI purchases in a wardrobe.",
             "brands": {
                 "niche": ["Buck Mason", "James Perse", "Sunspel", "Merz b. Schwanen", "Lady White Co", "Reigning Champ", "Velva Sheen", "Columbiaknit"],
                 "sale": ["J.Crew", "Todd Snyder", "Club Monaco"],
@@ -1028,82 +1043,82 @@ def style_gaps():
         {
             "tier": 1,
             "name": "Quality Merino Crewneck",
-            "why": "Your going-out sweaters are Old Navy and no-brand. One quality piece in charcoal or black becomes the anchor of half your date night outfits and raises the quality ceiling of the entire wardrobe.",
+            "why": "Your inspo board's canonical outfit is a cream or oatmeal knit under a sport coat — appears in Brunello Cucinelli, @jakewoolf, and @GntlemansGeek pins. Current sweaters are Old Navy and no-brand. One quality piece in cream or oatmeal becomes the anchor of the sport-coat looks.",
             "brands": {
                 "niche": ["NN07", "Norse Projects", "Sunspel", "Johnstons of Elgin", "Andersen-Andersen", "Margaret Howell", "Oliver Spencer", "Drake's", "Portuguese Flannel"],
                 "sale": ["Banana Republic", "J.Crew", "Club Monaco", "Charles Tyrwhitt"],
                 "secondhand": ["Grailed", "The RealReal"],
             },
             "options": [
-                {"brand": "Banana Republic", "name": "Merino Crew-Neck Sweater — Charcoal Gray", "price": "$40.99", "url": "https://bananarepublic.gap.com/browse/product.do?pid=796005102"},
-                {"brand": "J.Crew", "name": "Washable Merino Wool Crewneck — Grey/Black", "price": "see site", "url": "https://www.jcrew.com/p/mens/categories/clothing/sweaters/pullover/washable-merino-wool-crewneck-sweater/AD336"},
-                {"brand": "Grailed", "name": "Todd Snyder / NN07 Merino — Secondhand", "price": "$50–100", "url": "https://www.grailed.com/shop/crewneck-sweatshirts"},
+                {"brand": "Banana Republic", "name": "Merino Crew-Neck Sweater — Cream/Oatmeal", "price": "$40.99", "url": "https://bananarepublic.gap.com/browse/product.do?pid=796005102"},
+                {"brand": "J.Crew", "name": "Washable Merino Wool Crewneck — Ivory/Natural", "price": "see site", "url": "https://www.jcrew.com/p/mens/categories/clothing/sweaters/pullover/washable-merino-wool-crewneck-sweater/AD336"},
+                {"brand": "Grailed", "name": "NN07 / Sunspel Merino Crewneck — Secondhand", "price": "$50–100", "url": "https://www.grailed.com/shop/crewneck-sweatshirts"},
             ],
         },
         {
             "tier": 2,
-            "name": "Chelsea Boot Upgrade",
-            "why": "Zara suede is carrying 11 outfits including dinners and dates. A quality leather pair in dark brown or black adds a darker color register, photographs better, and will outlast the Zaras by years.",
+            "name": "Chambray / Denim Shirt",
+            "why": "Appears across multiple inspo pins — @jakewoolf's essential wardrobe list, Imogene + Willie layered look, and the J.Press OCBD adjacent pins. A light-wash chambray bridges casual and smart-casual, layers under sport coats, and replaces a dress shirt in warm weather.",
             "brands": {
-                "niche": ["R.M. Williams Craftsman", "Thursday Boot Co Duke", "Blundstone 585", "Loake Chatsworth", "Tricker's", "Sanders", "Cheaney"],
-                "sale": ["Thursday Boot Co", "End Clothing", "Atterley"],
+                "niche": ["J.Press", "Gitman Vintage", "Portuguese Flannel", "Drake's", "OrSlow", "Corridor", "Imogene + Willie"],
+                "sale": ["J.Crew", "Banana Republic", "Club Monaco"],
+                "secondhand": ["Grailed", "eBay"],
+            },
+            "options": [
+                {"brand": "J.Crew", "name": "Chambray Shirt — Light Wash", "price": "see site", "url": "https://www.jcrew.com/c/mens/categories/clothing/shirts"},
+                {"brand": "Grailed", "name": "Gitman Vintage / Portuguese Flannel Chambray — Secondhand", "price": "$40–80", "url": "https://www.grailed.com/shop/button-ups"},
+                {"brand": "eBay", "name": "J.Press / Brooks Brothers Chambray — Secondhand", "price": "$25–50", "url": "https://www.ebay.com/sch/i.html?_nkw=mens+chambray+shirt+large"},
+            ],
+        },
+        {
+            "tier": 2,
+            "name": "Brown Leather Belt",
+            "why": "Visible in almost every Brunello Cucinelli look and @jakewoolf's sport-coat fits. You have zero belts tracked. A quality brown leather belt in a warm tone ties together the earth-tone palette your inspo gravitates toward.",
+            "brands": {
+                "niche": ["Anderson's", "Trafalgar", "Drake's", "Carmina", "W. Kleinberg", "Filson"],
+                "sale": ["J.Crew", "Banana Republic", "Cole Haan"],
                 "secondhand": ["eBay", "Grailed"],
             },
             "options": [
-                {"brand": "eBay", "name": "Thursday Boot Co. Chelsea — Secondhand", "price": "$80–130", "url": "https://www.ebay.com/sch/i.html?_nkw=thursday+boot+chelsea&LH_ItemCondition=3000"},
-                {"brand": "Grailed", "name": "Quality Leather Chelsea Boots — Secondhand", "price": "$80–150", "url": "https://www.grailed.com/shop/boots"},
-                {"brand": "The RealReal", "name": "Men's Chelsea Boots — Secondhand", "price": "$100–200", "url": "https://www.therealreal.com/shop/men/shoes/boots"},
+                {"brand": "J.Crew", "name": "Italian Leather Belt — Dark Brown", "price": "see site", "url": "https://www.jcrew.com/c/mens/categories/accessories/belts"},
+                {"brand": "Banana Republic", "name": "Leather Belt — Cognac/Brown", "price": "$30–50", "url": "https://bananarepublic.gap.com/browse/men/accessories/belts?cid=1118048"},
+                {"brand": "eBay", "name": "Anderson's Woven Leather Belt — Secondhand", "price": "$30–60", "url": "https://www.ebay.com/sch/i.html?_nkw=andersons+leather+belt+mens"},
             ],
         },
         {
             "tier": 2,
-            "name": "Unstructured Casual Blazer",
-            "why": "Every blazer you own is a suit or work blazer. An unstructured sport coat in linen or cotton goes over a white tee for going out — a completely different use case that none of your current blazers can fill without looking like you came from the office.",
+            "name": "White Jeans / 5-Pocket Pants",
+            "why": "White/cream bottoms appear in multiple inspo pins — the safari jacket flat lay, @jakewoolf's sport coat + loafer look. Opens up a whole warm-weather register that tan chinos alone can't cover. The tonal cream-on-cream looks from Brunello Cucinelli need these.",
             "brands": {
-                "niche": ["COS", "NN07", "Norse Projects", "Sandro", "AMI Paris", "Portuguese Flannel", "Corridor", "De Bonne Facture", "Drake's", "Beams Plus", "Oliver Spencer"],
-                "sale": ["J.Crew", "Club Monaco", "Banana Republic"],
-                "secondhand": ["Grailed", "The RealReal"],
-            },
-            "options": [
-                {"brand": "J.Crew", "name": "Ludlow Slim Unstructured Blazer — Irish Linen", "price": "see site", "url": "https://www.jcrew.com/p/mens/categories/clothing/blazers/casual-blazers/ludlow-slim-fit-unstructured-blazer-in-irish-cotton-linen-blend/BW357"},
-                {"brand": "Grailed", "name": "COS / Sandro Unstructured Blazer — Secondhand", "price": "$80–150", "url": "https://www.grailed.com/shop/sport-coats-and-blazers"},
-                {"brand": "The RealReal", "name": "Men's Unstructured Sport Coat — Secondhand", "price": "$100–200", "url": "https://www.therealreal.com/shop/men/jackets-and-blazers"},
-            ],
-        },
-        {
-            "tier": 2,
-            "name": "Olive Slim Chino",
-            "why": "All chinos are khaki/tan or navy. An olive slim chino pairs with navy, cream, black, and white tops — more versatile for evening than cargo pants, and fills a real color gap.",
-            "brands": {
-                "niche": ["NN07", "Incotex", "Corridor", "Officine Générale", "Portuguese Flannel", "Sunflower", "OrSlow", "Albam"],
-                "sale": ["Banana Republic", "J.Crew", "Club Monaco"],
+                "niche": ["OrSlow", "Corridor", "NN07", "Officine Générale", "De Bonne Facture"],
+                "sale": ["J.Crew", "Banana Republic", "Abercrombie"],
                 "secondhand": ["Grailed"],
             },
             "options": [
-                {"brand": "J.Crew", "name": "484 Slim-fit Stretch Chino — Olive 32x32", "price": "$68.50", "url": "https://www.jcrew.com/p/mens/categories/clothing/pants-and-chinos/chino/484-slim-fit-stretch-chino-pant/AR885"},
-                {"brand": "Banana Republic", "name": "Slim Chino Olive — Men's Sale", "price": "$40–60", "url": "https://bananarepublic.gap.com/browse/men/mens-sale?cid=26219"},
-                {"brand": "Grailed", "name": "Slim Olive Chino — Secondhand", "price": "$20–50", "url": "https://www.grailed.com/shop/chinos"},
+                {"brand": "J.Crew", "name": "484 Slim White Jean — 32x32", "price": "see site", "url": "https://www.jcrew.com/c/mens/categories/clothing/denim"},
+                {"brand": "Banana Republic", "name": "Slim White Jean — Men's Sale", "price": "$40–60", "url": "https://bananarepublic.gap.com/browse/men/mens-sale?cid=26219"},
+                {"brand": "Grailed", "name": "OrSlow / Corridor White Pants — Secondhand", "price": "$40–80", "url": "https://www.grailed.com/shop/jeans"},
             ],
         },
         {
             "tier": 3,
-            "name": "Quality Fitted Black LS Tee",
-            "why": "Athletic tees are being pressed into going-out base layer duty. A proper long-sleeve in black with a good drape elevates the Leather Jacket Date, Mac Coat Evening, and bomber outfits significantly.",
+            "name": "Quality Sunglasses",
+            "why": "Your @JBMason pin explicitly calls out eyewear as the accessory that communicates the most. Oliver Peoples and Garrett Leight round frames appear across multiple inspo images. A quality pair in tortoise or gold finishes the Relaxed Ivy look.",
             "brands": {
-                "niche": ["Buck Mason", "James Perse", "Sunspel", "Reigning Champ", "Lady White Co", "Merz b. Schwanen"],
-                "sale": ["J.Crew", "Todd Snyder", "Club Monaco"],
-                "secondhand": ["Grailed"],
+                "niche": ["Oliver Peoples", "Garrett Leight", "Persol", "Jacques Marie Mage", "Moscot"],
+                "sale": ["Warby Parker", "RAEN"],
+                "secondhand": ["eBay", "The RealReal", "Grailed"],
             },
             "options": [
-                {"brand": "Buck Mason", "name": "Curved Hem Long Sleeve — Black (Sale)", "price": "$30–40", "url": "https://www.buckmason.com/collections/sale"},
-                {"brand": "J.Crew", "name": "Long Sleeve T-Shirt — Black (Sale)", "price": "$15–25", "url": "https://www.jcrew.com/mens/Sale"},
-                {"brand": "Grailed", "name": "James Perse Long Sleeve — Secondhand", "price": "$25–45", "url": "https://www.grailed.com/shop/t-shirts"},
+                {"brand": "Warby Parker", "name": "Haskell or Downing — Tortoise", "price": "$95–145", "url": "https://www.warbyparker.com/sunglasses"},
+                {"brand": "eBay", "name": "Oliver Peoples Round — Secondhand", "price": "$80–150", "url": "https://www.ebay.com/sch/i.html?_nkw=oliver+peoples+sunglasses+round"},
+                {"brand": "The RealReal", "name": "Persol / Oliver Peoples — Secondhand", "price": "$60–120", "url": "https://www.therealreal.com/shop/men/accessories/sunglasses"},
             ],
         },
         {
             "tier": 3,
             "name": "Dark Indigo Denim Jacket",
-            "why": "No denim jacket anywhere in the wardrobe. A dark slim-fit version layers over tees for casual going out in a different register from the leather jacket or bombers — lighter and more approachable.",
+            "why": "No denim jacket in the wardrobe. The Imogene + Willie inspo shows layered workwear — denim jacket over tees with cream chinos. A different register from the leather jacket or bombers, lighter and more approachable for spring/summer.",
             "brands": {
                 "niche": ["Levi's Type III Trucker", "Edwin", "Naked & Famous", "Iron Heart", "Studio D'Artisan", "OrSlow", "Oni Denim"],
                 "sale": ["Levi's", "Madewell", "J.Crew"],
