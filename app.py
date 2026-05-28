@@ -1050,9 +1050,9 @@ def style_gaps():
                 "secondhand": ["Grailed", "The RealReal"],
             },
             "options": [
-                {"brand": "Banana Republic", "name": "Merino Crew-Neck Sweater — Cream/Oatmeal", "price": "$40.99", "url": "https://bananarepublic.gap.com/browse/product.do?pid=796005102"},
-                {"brand": "J.Crew", "name": "Washable Merino Wool Crewneck — Ivory/Natural", "price": "see site", "url": "https://www.jcrew.com/p/mens/categories/clothing/sweaters/pullover/washable-merino-wool-crewneck-sweater/AD336"},
-                {"brand": "Grailed", "name": "NN07 / Sunspel Merino Crewneck — Secondhand", "price": "$50–100", "url": "https://www.grailed.com/shop/crewneck-sweatshirts"},
+                {"brand": "Peter Millar", "name": "Excursionist Flex Crew — British Cream (93% Merino)", "price": "$325 (use EXTRA20 on sale)", "url": "https://www.petermillar.com/p/excursionist-flex-crew/194624824309.html"},
+                {"brand": "Peter Millar", "name": "Briard Brushed Crewneck — Winter Ivory (Wool-Cashmere)", "price": "see site (use EXTRA20 on sale)", "url": "https://www.petermillar.com/p/briard-brushed-crewneck-sweater/197889009733.html"},
+                {"brand": "Peter Millar", "name": "Crown Cool Crewneck — Merino-Linen Blend (Summer Weight)", "price": "see site (use EXTRA20 on sale)", "url": "https://www.petermillar.com/p/crown-cool-crewneck-sweater/194624247245.html"},
             ],
         },
         {
